@@ -1,0 +1,28 @@
+[project]
+name = "fdasearch"
+version = "0.1.0"
+description = "FDA product search web app with competitive AI analysis"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]==0.139.0",
+    "httpx==0.28.1",
+    "Jinja2==3.1.6",
+    "python-dotenv==1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

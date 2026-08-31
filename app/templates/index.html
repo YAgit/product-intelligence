@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ app_name }} | Drug Search</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body
+    {% if page.result and page.chat_messages %}
+    data-scroll-target="chat-panel"
+    {% elif page.result %}
+    data-scroll-target="details-panel"
+    {% elif page.matches %}
+    data-scroll-target="match-panel"
+    {% endif %}
+  >
+    <div class="loading-shell" aria-hidden="true">
+      <div class="loading-card">
+        <span class="loading-spinner"></span>
+        <p class="loading-title">Working on your request</p>
+        <p class="loading-copy">Fetching FDA data and preparing the next screen.</p>
+      </div>
+    </div>
+    <div class="page-shell">
+      <nav class="mode-tabs" aria-label="Search modes">
+        <a href="/" class="mode-tab{% if active_tab == 'drug' %} is-active{% endif %}">Drug Search</a>
+        <a href="/devices" class="mode-tab{% if active_tab == 'device' %} is-active{% endif %}">Device Search</a>
+      </nav>
+
+      <header class="hero">
+        <div class="hero-topline">
+          <p class="eyebrow">Pharmaceutical Product Intelligence</p>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <h1>Drug Search</h1>
+            <p class="hero-copy">
+              Search a drug by product name or NDC code, review FDA directory details,
+              then ask a pharmaceutical product analyst chatbot about the selected product.
+            </p>
+          </div>
+          <aside class="hero-summary">
+            <h2>Session Snapshot</h2>
+            <dl class="summary-grid">
+              <div>
+                <dt>FDA source</dt>
+                <dd>Live NDC directory</dd>
+              </div>
+              <div>
+                <dt>AI mode</dt>
+                <dd>Pharma analyst chatbot</dd>
+              </div>
+              <div>
+                <dt>Current query</dt>
+                <dd>{{ page.query if page.query else "None yet" }}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>
+                {% if page.result %}
+                  Result loaded
+                  {% elif page.error %}
+                  Needs attention
+                  {% else %}
+                  Ready to search
+                  {% endif %}
+                </dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </header>
+
+      <section class="panel disclaimer-panel" aria-labelledby="disclaimer-title">
+        <div class="panel-heading">
+          <h2 id="disclaimer-title">Important Drug Disclaimer</h2>
+          <span class="badge disclaimer-badge">Read before use</span>
+        </div>
+        <p class="disclaimer-copy">
+          This drug demo provides FDA directory data and AI-generated responses for general informational
+          purposes only. It is not medical advice, diagnosis, treatment guidance, pharmacy guidance,
+          emergency guidance, legal advice, or regulatory or compliance advice.
+        </p>
+        <p class="disclaimer-copy">
+          Do not use this drug demo as the basis for any health-related, safety-critical, financial,
+          legal, regulatory, or other important decision. Always verify product information with
+          official FDA labeling and consult a qualified physician, pharmacist, attorney, regulatory
+          specialist, or other appropriate professional before acting on any information shown here.
+          If this is an emergency, contact emergency services immediately.
+        </p>
+      </section>
+
+      <main class="layout">
+        <section class="top-grid">
+          <section class="panel search-panel">
+            <div class="panel-heading">
+              <h2>Search</h2>
+              <span class="badge">Live FDA lookup</span>
+            </div>
+            <form class="search-form js-busy-form" method="get" action="/" data-busy-label="Searching...">
+              <label for="query">Product name or NDC code</label>
+              <div class="search-row">
+                <input
+                  id="query"
+                  name="query"
+                  type="text"
+                  placeholder="Example: Eliquis or 00074-4331"
+                  value="{{ page.query }}"
+                />
+                <button type="submit" data-idle-label="Search">Search</button>
+              </div>
+            </form>
+            <div class="search-notes">
+              <div class="note-card">
+                <span class="note-kicker">Accepted inputs</span>
+                <p>Brand name, generic name, product NDC, or package NDC.</p>
+              </div>
+              <div class="note-card">
+                <span class="note-kicker">Search behavior</span>
+                <p>Ambiguous drug name searches show a shortlist so you can choose the exact FDA product before details and chat load.</p>
+              </div>
+            </div>
+            {% if page.error %}
+            <div class="message-banner error-banner">
+              <strong>Search update:</strong>
+              <span>{{ page.error }}</span>
+            </div>
+            {% elif page.result %}
+            <div class="message-banner success-banner">
+              <strong>Search ready:</strong>
+              <span>FDA details and the pharma chatbot are ready for {{ page.result.brand_name }}.</span>
+            </div>
+            {% elif page.chat_notice %}
+            <div class="message-banner success-banner">
+              <strong>Selection needed:</strong>
+              <span>{{ page.chat_notice }}</span>
+            </div>
+            {% endif %}
+          </section>
+
+          <aside class="panel status-panel">
+            <div class="panel-heading">
+              <h2>Search Status</h2>
+              <span class="status-pill">
+                {% if page.result %}Loaded{% elif page.error %}Attention{% else %}Idle{% endif %}
+              </span>
+            </div>
+            <dl class="status-list">
+              <div>
+                <dt>Query</dt>
+                <dd>{{ page.query if page.query else "Waiting for input" }}</dd>
+              </div>
+              <div>
+                <dt>FDA details</dt>
+                <dd>{% if page.result %}Available{% else %}Not loaded{% endif %}</dd>
+              </div>
+              <div>
+                <dt>Selection state</dt>
+                <dd>
+                  {% if page.result %}
+                  Product selected
+                  {% elif page.matches %}
+                  {{ page.matches | length }} possible matches
+                  {% else %}
+                  Pending search
+                  {% endif %}
+                </dd>
+              </div>
+              <div>
+                <dt>Data source</dt>
+                <dd>openFDA NDC directory</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+
+        {% if page.matches and not page.result %}
+        <section class="panel match-panel" id="match-panel">
+          <div class="panel-heading">
+            <h2>Select A Product Match</h2>
+            <span class="status-pill">{{ page.matches | length }} matches</span>
+          </div>
+          <p class="supporting-text">
+            More than one FDA-listed product matched your search. Choose the exact product below to load full details and enable the chatbot.
+          </p>
+          <div class="match-grid">
+            {% for match in page.matches %}
+            <form class="match-card js-busy-form" method="get" action="/" data-busy-label="Loading product...">
+              <input type="hidden" name="query" value="{{ page.query }}" />
+              <input type="hidden" name="product_ndc" value="{{ match.product_ndc }}" />
+              <div class="match-card-body">
+                <h3>{{ match.brand_name }}</h3>
+                <p><strong>Generic:</strong> {{ match.generic_name }}</p>
+                <p><strong>Labeler:</strong> {{ match.labeler_name }}</p>
+                <p><strong>Product NDC:</strong> {{ match.product_ndc }}</p>
+                <p><strong>Dosage:</strong> {{ match.dosage_form }}</p>
+                <p><strong>Type:</strong> {{ match.product_type }}</p>
+              </div>
+              <button type="submit" class="match-button" data-idle-label="Select this product">Select this product</button>
+            </form>
+            {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+
+        <section class="panel details-panel" id="details-panel">
+          <div class="panel-heading">
+            <h2>FDA Product Details</h2>
+            <span class="status-pill">
+              {% if page.result %}Result loaded{% else %}Waiting for search{% endif %}
+            </span>
+          </div>
+          {% if page.result %}
+          <div class="result-banner">
+            <div>
+              <p class="result-eyebrow">Top FDA match</p>
+              <h3>{{ page.result.brand_name }}</h3>
+              <p>{{ page.result.generic_name }} · {{ page.result.labeler_name }}</p>
+            </div>
+            <div class="result-tags">
+              <span>{{ page.result.product_ndc }}</span>
+              <span>{{ page.result.marketing_category }}</span>
+              <span>{{ page.result.product_type }}</span>
+            </div>
+          </div>
+          {% endif %}
+          <div class="detail-grid">
+            <article>
+              <h3>Product</h3>
+              {% if page.result %}
+              <p><strong>Brand:</strong> {{ page.result.brand_name }}</p>
+              <p><strong>Generic:</strong> {{ page.result.generic_name }}</p>
+              <p><strong>Product NDC:</strong> {{ page.result.product_ndc }}</p>
+              {% else %}
+              <p>Result details will appear here after a successful search.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Labeler</h3>
+              {% if page.result %}
+              <p><strong>Company:</strong> {{ page.result.labeler_name }}</p>
+              <p>
+                <strong>Package NDCs:</strong>
+                {% if page.result.package_ndcs %}
+                {{ page.result.package_ndcs | join(", ") }}
+                {% else %}
+                Not available
+                {% endif %}
+              </p>
+              {% else %}
+              <p>Manufacturer and packaging information will be shown here.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Route</h3>
+              {% if page.result %}
+              <p><strong>Dosage:</strong> {{ page.result.dosage_form }}</p>
+              <p>
+                <strong>Route:</strong>
+                {% if page.result.route %}
+                {{ page.result.route | join(", ") }}
+                {% else %}
+                Not available
+                {% endif %}
+              </p>
+              <p>
+                <strong>Ingredients:</strong>
+                {% if page.result.active_ingredients %}
+                {{ page.result.active_ingredients | join(", ") }}
+                {% else %}
+                Not available
+                {% endif %}
+              </p>
+              {% else %}
+              <p>Route, dosage form, and active ingredients will be listed here.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Status</h3>
+              {% if page.result %}
+              <p><strong>Category:</strong> {{ page.result.marketing_category }}</p>
+              <p><strong>Type:</strong> {{ page.result.product_type }}</p>
+              <p><strong>Application:</strong> {{ page.result.application_number }}</p>
+              <p><strong>Listed through:</strong> {{ page.result.listing_expiration_date }}</p>
+              <p><strong>Marketed since:</strong> {{ page.result.marketing_start_date }}</p>
+              {% else %}
+              <p>NDC status and listing metadata will be surfaced here.</p>
+              {% endif %}
+            </article>
+          </div>
+          {% if page.result and page.result.package_descriptions %}
+          <div class="package-list">
+            <h3>Packaging</h3>
+            <ul>
+              {% for description in page.result.package_descriptions %}
+              <li>{{ description }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </section>
+
+        <section class="panel chat-panel" id="chat-panel">
+          <div class="panel-heading analysis-heading">
+            <h2>Pharma Analyst Chatbot</h2>
+          </div>
+          {% if page.result and page.competitive_summary %}
+          <div class="summary-strip">
+            <div>
+              <p class="summary-strip-label">Product overview</p>
+              <p class="summary-strip-text">{{ page.competitive_summary }}</p>
+            </div>
+            {% if page.competitive_summary_model %}
+            <span class="summary-strip-model">{{ page.competitive_summary_model }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+          <div class="analysis-intro">
+            <p>
+              Ask about the selected pharmaceutical product, its manufacturer, dosage form, ingredients, market position, or related pharma product topics.
+            </p>
+          </div>
+          <div class="chat-disclaimer" role="note" aria-label="Drug chatbot disclaimer">
+            <strong>Reminder:</strong>
+            <span>
+              AI responses here are informational only and must not be used for medication, emergency,
+              legal, regulatory, or other critical decisions.
+            </span>
+          </div>
+          {% if page.chat_notice and page.result %}
+          <div class="message-banner success-banner">
+            <strong>Chat update:</strong>
+            <span>{{ page.chat_notice }}</span>
+          </div>
+          {% endif %}
+          <div class="chat-shell">
+            <div class="chat-history">
+              {% if page.chat_messages %}
+                {% for message in page.chat_messages %}
+                <article class="chat-bubble chat-bubble-{{ message.role }}">
+                  <h3>{% if message.role == "user" %}You{% else %}Analyst{% endif %}</h3>
+                  <p>{{ message.content }}</p>
+                </article>
+                {% endfor %}
+              {% else %}
+              <article class="chat-bubble chat-bubble-assistant">
+                <h3>Analyst</h3>
+                <p>
+                  {% if page.result %}
+                  Ask about {{ page.result.brand_name }} or another pharmaceutical product question.
+                  {% else %}
+                  Select a product first, then ask a pharmaceutical product question.
+                  {% endif %}
+                </p>
+              </article>
+              {% endif %}
+            </div>
+            <form class="chat-form js-busy-form" method="post" action="/chat#chat-panel" data-busy-label="Analyst is responding...">
+              <input type="hidden" name="query" value="{{ page.query }}" />
+              <input type="hidden" name="product_ndc" value="{{ page.selected_product_ndc }}" />
+              <input type="hidden" name="competitive_summary" value="{{ page.competitive_summary or '' }}" />
+              <input type="hidden" name="competitive_summary_model" value="{{ page.competitive_summary_model or '' }}" />
+              {% for history_message in page.chat_messages %}
+              <input type="hidden" name="history_roles" value="{{ history_message.role }}" />
+              <input type="hidden" name="history_contents" value="{{ history_message.content }}" />
+              {% endfor %}
+              <label for="message">Ask the pharmaceutical product analyst</label>
+              <textarea
+                id="message"
+                name="message"
+                rows="4"
+                placeholder="Example: What kinds of competitors does this product face?"
+              >{{ page.chat_input }}</textarea>
+              <button type="submit" data-idle-label="Send question">Send question</button>
+            </form>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>OpenRouter key: {{ "configured" if has_openrouter_key else "missing" }}</span>
+        <span>openFDA key: {{ "configured" if has_openfda_key else "missing" }}</span>
+      </footer>
+    </div>
+    <script>
+      (() => {
+        const body = document.body;
+        const forms = document.querySelectorAll(".js-busy-form");
+        const scrollTargetId = body.dataset.scrollTarget || window.location.hash.slice(1);
+
+        const setBusyState = (form) => {
+          if (body.classList.contains("is-busy")) return;
+
+          body.classList.add("is-busy");
+
+          const button = form.querySelector('button[type="submit"]');
+          if (button) {
+            button.dataset.idleLabel ||= button.textContent.trim();
+            button.textContent = form.dataset.busyLabel || "Working...";
+            button.disabled = true;
+          }
+
+          const input = form.querySelector("input, textarea, select");
+          if (input instanceof HTMLElement) {
+            input.blur();
+          }
+        };
+
+        forms.forEach((form) => {
+          form.addEventListener("submit", () => {
+            setBusyState(form);
+          });
+        });
+
+        window.addEventListener("pageshow", () => {
+          body.classList.remove("is-busy");
+          forms.forEach((form) => {
+            const button = form.querySelector('button[type="submit"]');
+            if (button && button.dataset.idleLabel) {
+              button.textContent = button.dataset.idleLabel;
+              button.disabled = false;
+            }
+          });
+        });
+
+        if (scrollTargetId) {
+          const scrollTarget = document.getElementById(scrollTargetId);
+          if (scrollTarget) {
+            requestAnimationFrame(() => {
+              scrollTarget.scrollIntoView({ behavior: "auto", block: "start" });
+            });
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

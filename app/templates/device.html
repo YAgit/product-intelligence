@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ app_name }} | Device Search</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body
+    {% if page.result and page.chat_messages %}
+    data-scroll-target="device-chat-panel"
+    {% elif page.result %}
+    data-scroll-target="device-details-panel"
+    {% elif page.matches %}
+    data-scroll-target="device-match-panel"
+    {% endif %}
+  >
+    <div class="loading-shell" aria-hidden="true">
+      <div class="loading-card">
+        <span class="loading-spinner"></span>
+        <p class="loading-title">Working on your request</p>
+        <p class="loading-copy">Fetching FDA device data and preparing the next screen.</p>
+      </div>
+    </div>
+    <div class="page-shell">
+      <nav class="mode-tabs" aria-label="Search modes">
+        <a href="/" class="mode-tab{% if active_tab == 'drug' %} is-active{% endif %}">Drug Search</a>
+        <a href="/devices" class="mode-tab{% if active_tab == 'device' %} is-active{% endif %}">Device Search</a>
+      </nav>
+
+      <header class="hero">
+        <div class="hero-topline">
+          <p class="eyebrow">Pharmaceutical Device Intelligence</p>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <h1>Device Search</h1>
+            <p class="hero-copy">
+              Search a medical device by UDI barcode text, device identifier, brand name, or model and catalog number,
+              review FDA device details, then ask a device analyst chatbot about the selected device.
+            </p>
+          </div>
+          <aside class="hero-summary">
+            <h2>Session Snapshot</h2>
+            <dl class="summary-grid">
+              <div>
+                <dt>FDA source</dt>
+                <dd>Live UDI directory</dd>
+              </div>
+              <div>
+                <dt>AI mode</dt>
+                <dd>Device analyst chatbot</dd>
+              </div>
+              <div>
+                <dt>Current query</dt>
+                <dd>{{ page.query if page.query else "None yet" }}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>
+                {% if page.result %}
+                  Result loaded
+                  {% elif page.error %}
+                  Needs attention
+                  {% else %}
+                  Ready to search
+                  {% endif %}
+                </dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </header>
+
+      <section class="panel disclaimer-panel" aria-labelledby="device-disclaimer-title">
+        <div class="panel-heading">
+          <h2 id="device-disclaimer-title">Important Device Disclaimer</h2>
+          <span class="badge disclaimer-badge">Read before use</span>
+        </div>
+        <p class="disclaimer-copy">
+          This device demo provides FDA UDI data and AI-generated responses for general informational
+          purposes only. It is not medical advice, treatment guidance, device selection guidance,
+          emergency guidance, legal advice, or regulatory or compliance advice.
+        </p>
+        <p class="disclaimer-copy">
+          Do not use this device demo as the basis for any health-related, safety-critical, financial,
+          legal, regulatory, procurement, or other important decision. Always verify device information
+          with official FDA records, manufacturer labeling, and the appropriate qualified professional
+          before acting on any information shown here. If this is an emergency, contact emergency services immediately.
+        </p>
+      </section>
+
+      <main class="layout">
+        <section class="top-grid">
+          <section class="panel search-panel">
+            <div class="panel-heading">
+              <h2>Search</h2>
+              <span class="badge">Live FDA lookup</span>
+            </div>
+            <form class="search-form js-busy-form" method="get" action="/devices" data-busy-label="Searching devices...">
+              <label for="device-query">UDI barcode text, DI, brand name, or model/catalog number</label>
+              <div class="search-row">
+                <input
+                  id="device-query"
+                  name="query"
+                  type="text"
+                  placeholder="Example: (01)00810000000018 or 1301-294"
+                  value="{{ page.query }}"
+                />
+                <button type="submit" data-idle-label="Search">Search</button>
+              </div>
+            </form>
+            <div class="search-notes">
+              <div class="note-card">
+                <span class="note-kicker">Accepted inputs</span>
+                <p>UDI barcode text, Device Identifier, brand name, or version/model and catalog number.</p>
+              </div>
+              <div class="note-card">
+                <span class="note-kicker">Search behavior</span>
+                <p>When multiple device records match, choose the exact FDA device from a shortlist before details and chat load.</p>
+              </div>
+            </div>
+            {% if page.error %}
+            <div class="message-banner error-banner">
+              <strong>Search update:</strong>
+              <span>{{ page.error }}</span>
+            </div>
+            {% elif page.result %}
+            <div class="message-banner success-banner">
+              <strong>Search ready:</strong>
+              <span>FDA details and the device chatbot are ready for {{ page.result.brand_name }}.</span>
+            </div>
+            {% elif page.chat_notice %}
+            <div class="message-banner success-banner">
+              <strong>Selection needed:</strong>
+              <span>{{ page.chat_notice }}</span>
+            </div>
+            {% endif %}
+          </section>
+
+          <aside class="panel status-panel">
+            <div class="panel-heading">
+              <h2>Search Status</h2>
+              <span class="status-pill">
+                {% if page.result %}Loaded{% elif page.error %}Attention{% else %}Idle{% endif %}
+              </span>
+            </div>
+            <dl class="status-list">
+              <div>
+                <dt>Query</dt>
+                <dd>{{ page.query if page.query else "Waiting for input" }}</dd>
+              </div>
+              <div>
+                <dt>FDA details</dt>
+                <dd>{% if page.result %}Available{% else %}Not loaded{% endif %}</dd>
+              </div>
+              <div>
+                <dt>Selection state</dt>
+                <dd>
+                  {% if page.result %}
+                  Device selected
+                  {% elif page.matches %}
+                  {{ page.matches | length }} possible matches
+                  {% else %}
+                  Pending search
+                  {% endif %}
+                </dd>
+              </div>
+              <div>
+                <dt>Data source</dt>
+                <dd>openFDA device UDI</dd>
+              </div>
+            </dl>
+          </aside>
+        </section>
+
+        {% if page.matches and not page.result %}
+        <section class="panel match-panel" id="device-match-panel">
+          <div class="panel-heading">
+            <h2>Select A Device Match</h2>
+            <span class="status-pill">{{ page.matches | length }} matches</span>
+          </div>
+          <p class="supporting-text">
+            More than one FDA device matched your search. Choose the exact device below to load full details and enable the chatbot.
+          </p>
+          <form class="selection-form js-busy-form" method="get" action="/devices" data-busy-label="Loading device...">
+            <input type="hidden" name="query" value="{{ page.query }}" />
+            <label for="record_key">Choose the exact FDA device</label>
+            <div class="selection-row">
+              <select id="record_key" name="record_key" class="selection-select">
+                {% for match in page.matches %}
+                <option value="{{ match.record_key }}">
+                  {{ match.brand_name }} | DI {{ match.device_identifier }} | {{ match.version_or_model_number }}
+                </option>
+                {% endfor %}
+              </select>
+              <button type="submit" data-idle-label="Load device">Load device</button>
+            </div>
+          </form>
+        </section>
+        {% endif %}
+
+        <section class="panel details-panel" id="device-details-panel">
+          <div class="panel-heading">
+            <h2>FDA Device Details</h2>
+            <span class="status-pill">
+              {% if page.result %}Result loaded{% else %}Waiting for search{% endif %}
+            </span>
+          </div>
+          {% if page.result %}
+          <div class="result-banner">
+            <div>
+              <p class="result-eyebrow">Top FDA match</p>
+              <h3>{{ page.result.brand_name }}</h3>
+              <p>{{ page.result.version_or_model_number }} · {{ page.result.company_name }}</p>
+            </div>
+            <div class="result-tags">
+              <span>{{ page.result.device_identifier }}</span>
+              {% if page.result.product_codes %}
+              <span>{{ page.result.product_codes[0] }}</span>
+              {% endif %}
+              <span>{{ page.result.commercial_distribution_status }}</span>
+            </div>
+          </div>
+          {% endif %}
+          <div class="detail-grid">
+            <article>
+              <h3>Identity</h3>
+              {% if page.result %}
+              <p><strong>Device Identifier:</strong> {{ page.result.device_identifier }}</p>
+              <p><strong>Brand name:</strong> {{ page.result.brand_name }}</p>
+              <p><strong>Company:</strong> {{ page.result.company_name }}</p>
+              {% else %}
+              <p>Device identity details will appear here after a successful search.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Modeling</h3>
+              {% if page.result %}
+              <p><strong>Version or model number:</strong> {{ page.result.version_or_model_number }}</p>
+              <p><strong>Catalog number:</strong> {{ page.result.catalog_number }}</p>
+              <p><strong>FDA product code:</strong>
+                {% if page.result.product_codes %}
+                {{ page.result.product_codes | join(", ") }}
+                {% else %}
+                Not available
+                {% endif %}
+              </p>
+              {% else %}
+              <p>Version, catalog, and product code information will be shown here.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Usage</h3>
+              {% if page.result %}
+              <p><strong>Commercial distribution:</strong> {{ page.result.commercial_distribution_status }}</p>
+              <p><strong>Prescription or OTC:</strong> {{ page.result.prescription_otc_status }}</p>
+              <p><strong>Single-use indicator:</strong> {{ page.result.single_use_indicator }}</p>
+              {% else %}
+              <p>Distribution and use details will be surfaced here.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Safety</h3>
+              {% if page.result %}
+              <p><strong>Sterility information:</strong> {{ page.result.sterility_information }}</p>
+              <p><strong>MRI safety:</strong> {{ page.result.mri_safety_information }}</p>
+              <p><strong>Implantable-device indicator:</strong> {{ page.result.implantable_device_indicator }}</p>
+              <p><strong>Latex information:</strong> {{ page.result.latex_information }}</p>
+              {% else %}
+              <p>Safety indicators will be listed here.</p>
+              {% endif %}
+            </article>
+          </div>
+          <div class="detail-grid detail-grid-secondary">
+            <article>
+              <h3>Description</h3>
+              {% if page.result %}
+              <p>{{ page.result.device_description }}</p>
+              {% else %}
+              <p>Device description text will appear here.</p>
+              {% endif %}
+            </article>
+            <article>
+              <h3>Storage And Handling</h3>
+              {% if page.result and page.result.storage_and_handling_conditions %}
+              <ul class="detail-list">
+                {% for item in page.result.storage_and_handling_conditions %}
+                <li>{{ item }}</li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p>Not available.</p>
+              {% endif %}
+            </article>
+          </div>
+          <div class="package-list">
+            <h3>Packaging Configurations</h3>
+            {% if page.result and page.result.packaging_configurations %}
+            <ul>
+              {% for item in page.result.packaging_configurations %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p>Not available.</p>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="panel chat-panel" id="device-chat-panel">
+          <div class="panel-heading analysis-heading">
+            <h2>Device Analyst Chatbot</h2>
+          </div>
+          {% if page.result and page.device_summary %}
+          <div class="summary-strip">
+            <div>
+              <p class="summary-strip-label">Device overview</p>
+              <p class="summary-strip-text">{{ page.device_summary }}</p>
+            </div>
+            {% if page.device_summary_model %}
+            <span class="summary-strip-model">{{ page.device_summary_model }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+          <div class="analysis-intro">
+            <p>
+              Ask about the selected device, its identifier, model, labeling, packaging, safety indicators, manufacturer, or related device topics.
+            </p>
+          </div>
+          <div class="chat-disclaimer" role="note" aria-label="Device chatbot disclaimer">
+            <strong>Reminder:</strong>
+            <span>
+              AI responses here are informational only and must not be used for device selection, patient care,
+              emergency, legal, regulatory, or other critical decisions.
+            </span>
+          </div>
+          {% if page.chat_notice and page.result %}
+          <div class="message-banner success-banner">
+            <strong>Chat update:</strong>
+            <span>{{ page.chat_notice }}</span>
+          </div>
+          {% endif %}
+          <div class="chat-shell">
+            <div class="chat-history">
+              {% if page.chat_messages %}
+                {% for message in page.chat_messages %}
+                <article class="chat-bubble chat-bubble-{{ message.role }}">
+                  <h3>{% if message.role == "user" %}You{% else %}Analyst{% endif %}</h3>
+                  <p>{{ message.content }}</p>
+                </article>
+                {% endfor %}
+              {% else %}
+              <article class="chat-bubble chat-bubble-assistant">
+                <h3>Analyst</h3>
+                <p>
+                  {% if page.result %}
+                  Ask about {{ page.result.brand_name }} or another FDA device question.
+                  {% else %}
+                  Select a device first, then ask a device question.
+                  {% endif %}
+                </p>
+              </article>
+              {% endif %}
+            </div>
+            <form class="chat-form js-busy-form" method="post" action="/devices/chat#device-chat-panel" data-busy-label="Analyst is responding...">
+              <input type="hidden" name="query" value="{{ page.query }}" />
+              <input type="hidden" name="record_key" value="{{ page.selected_record_key }}" />
+              <input type="hidden" name="device_summary" value="{{ page.device_summary or '' }}" />
+              <input type="hidden" name="device_summary_model" value="{{ page.device_summary_model or '' }}" />
+              {% for history_message in page.chat_messages %}
+              <input type="hidden" name="history_roles" value="{{ history_message.role }}" />
+              <input type="hidden" name="history_contents" value="{{ history_message.content }}" />
+              {% endfor %}
+              <label for="device-message">Ask the device analyst</label>
+              <textarea
+                id="device-message"
+                name="message"
+                rows="4"
+                placeholder="Example: What do the sterility and MRI safety details imply?"
+              >{{ page.chat_input }}</textarea>
+              <button type="submit" data-idle-label="Send question">Send question</button>
+            </form>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>OpenRouter key: {{ "configured" if has_openrouter_key else "missing" }}</span>
+        <span>openFDA key: {{ "configured" if has_openfda_key else "missing" }}</span>
+      </footer>
+    </div>
+    <script>
+      (() => {
+        const body = document.body;
+        const forms = document.querySelectorAll(".js-busy-form");
+        const scrollTargetId = body.dataset.scrollTarget || window.location.hash.slice(1);
+
+        const setBusyState = (form) => {
+          if (body.classList.contains("is-busy")) return;
+
+          body.classList.add("is-busy");
+
+          const button = form.querySelector('button[type="submit"]');
+          if (button) {
+            button.dataset.idleLabel ||= button.textContent.trim();
+            button.textContent = form.dataset.busyLabel || "Working...";
+            button.disabled = true;
+          }
+
+          const input = form.querySelector("input, textarea, select");
+          if (input instanceof HTMLElement) {
+            input.blur();
+          }
+        };
+
+        forms.forEach((form) => {
+          form.addEventListener("submit", () => {
+            setBusyState(form);
+          });
+        });
+
+        window.addEventListener("pageshow", () => {
+          body.classList.remove("is-busy");
+          forms.forEach((form) => {
+            const button = form.querySelector('button[type="submit"]');
+            if (button && button.dataset.idleLabel) {
+              button.textContent = button.dataset.idleLabel;
+              button.disabled = false;
+            }
+          });
+        });
+
+        if (scrollTargetId) {
+          const scrollTarget = document.getElementById(scrollTargetId);
+          if (scrollTarget) {
+            requestAnimationFrame(() => {
+              scrollTarget.scrollIntoView({ behavior: "auto", block: "start" });
+            });
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
