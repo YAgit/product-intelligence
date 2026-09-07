@@ -581,104 +581,14 @@ The AI layer is for synthesis and explanation, not authoritative statistical com
 
 The application should no longer depend on Hugging Face Spaces.
 
-Use a **Vercel-first, AWS-ready** deployment strategy. Deployment configuration and operational procedures must remain separate from the application package so the same Next.js frontend and Dockerized FastAPI backend can move between environments without business-logic changes.
+Use a Vercel-first, AWS-ready deployment strategy while keeping provider-specific configuration outside the application package.
 
-Phase 2 produces deployment runbooks; it does not deploy infrastructure or add provider-specific files to the application repository. Actual deployment requires a separate, explicit implementation request and the required cloud accounts, permissions, domains, and secrets.
+Phase 2 creates two runbooks and does not create cloud resources or change application code:
 
-The deployment runbooks are:
+- `docs/DEPLOYMENT_VERCEL.md` for the Vercel demo architecture.
+- `docs/DEPLOYMENT_AWS.md` for AWS Amplify Hosting, ECR, ECS Express Mode, and Fargate.
 
-- `docs/DEPLOYMENT_VERCEL.md` for a Vercel demo environment.
-- `docs/DEPLOYMENT_AWS.md` for an AWS environment using Amplify Hosting, ECR, ECS Express Mode, and Fargate.
-
-The immediate objective is to document a low-complexity Vercel path for demonstrations and validation. The longer-term production and enterprise target is AWS.
-
-### Demo / MVP Deployment
-
-Use the Vercel runbook for the initial demo deployment when deployment is explicitly authorized.
-
-Frontend:
-- Next.js
-- Deploy natively on Vercel
-
-Backend:
-- FastAPI
-- Keep the backend Dockerized
-- Deploy the backend through Vercel's supported FastAPI or container-function model without moving backend responsibilities into Next.js
-
-The FastAPI backend must remain portable and container-compatible.
-
-Do not move FDA access, safety analytics, product matching, or AI orchestration into Vercel-specific frontend/server code simply to simplify deployment.
-
-Avoid Vercel-specific backend dependencies that would make later migration to AWS materially harder.
-
-Do not commit Vercel project metadata, provider-specific application adapters, or generated deployment output merely to execute the runbook. If Vercel requires provider-specific packaging, create it in an external deployment workspace or deployment pipeline.
-
-### Target AWS Production Architecture
-
-When the application requires a more production-oriented or enterprise deployment, use AWS.
-
-Frontend:
-- Next.js
-- AWS Amplify Hosting or another appropriate AWS frontend-hosting option
-
-Backend:
-- FastAPI
-- Docker
-- Amazon ECR
-- Amazon ECS Express Mode
-- AWS Fargate
-
-Supporting services may include:
-- AWS Secrets Manager for production secrets
-- Amazon CloudWatch for application logging and operational visibility
-- Route 53 for DNS where needed
-- AWS-managed TLS certificates
-
-Do not use AWS App Runner for new deployment work in this project.
-
-Do not introduce additional AWS services without a concrete requirement.
-
-Keep Amplify build settings, ECR release commands, ECS service configuration, IAM resources, and environment-specific values in the deployment environment or an independently managed infrastructure package. Do not add them to the application package during this documentation phase.
-
-### AWS Evolution
-
-ECS Express Mode is the preferred initial AWS backend deployment approach because it provides a simplified deployment experience while using standard ECS/Fargate resources underneath.
-
-As product scale or enterprise requirements grow, progressively customize the underlying ECS/Fargate architecture rather than migrating to a different container platform.
-
-Future customization may include:
-- More explicit ECS service configuration
-- Shared or dedicated Application Load Balancers
-- VPC/networking controls
-- Custom autoscaling policies
-- Multiple backend services or workers
-- WAF and additional edge/security controls
-
-Do not manually construct a full ECS platform unless a concrete requirement is not supported by ECS Express Mode.
-
-### Deployment Portability Rule
-
-Treat Vercel as the initial hosting environment, not as an application architecture dependency.
-
-The intended deployment progression is:
-
-```text
-Demo / validation
-Vercel
-  - Next.js frontend
-  - Dockerized FastAPI backend
-
-        ->
-
-Production / enterprise
-AWS
-  - Next.js frontend
-  - Same Dockerized FastAPI backend
-  - ECR
-  - ECS Express Mode / Fargate
-```
-
-Moving from Vercel to AWS should primarily be a deployment/infrastructure change, not a rewrite of backend business logic.
+Actual deployment requires a separate explicit request. Do not use AWS App Runner for new deployment work in this project.
 
 ---
 
@@ -899,17 +809,14 @@ Do not rewrite working backend services unnecessarily.
 ### Phase 2 - Deployment Instructions
 
 Objective:
-Create detailed, executable deployment guidance for both the demo and production target architectures while keeping the application code provider-neutral.
+Create detailed deployment guidance for Vercel and AWS while keeping application code provider-neutral.
 
 Tasks:
-- Create `docs/DEPLOYMENT_VERCEL.md` covering the Next.js frontend and FastAPI backend.
-- Create `docs/DEPLOYMENT_AWS.md` covering Amplify Hosting, ECR, ECS Express Mode, and Fargate.
-- Document prerequisites, architecture, environment variables, secrets, deployment order, verification, observability, rollback, and teardown.
+- Create `docs/DEPLOYMENT_VERCEL.md` for the Next.js frontend and FastAPI backend.
+- Create `docs/DEPLOYMENT_AWS.md` for Amplify Hosting, ECR, ECS Express Mode, and Fargate.
+- Document prerequisites, environment variables, secrets, deployment order, verification, observability, rollback, and teardown.
 - Keep provider-specific configuration outside the application package.
-- Preserve the same Dockerized FastAPI application for the AWS path.
 - Do not create cloud resources, deploy the application, or add provider-specific code/configuration during this phase.
-
-The Vercel runbook should remain intentionally simple. The AWS runbook should use ECS Express Mode before considering manually assembled ECS infrastructure.
 
 ### Phase 3 - Adverse Event Intelligence
 
@@ -988,11 +895,9 @@ The MVP is complete when:
 
 12. Detailed Vercel and AWS deployment runbooks exist and preserve application-code neutrality.
 
-13. The Dockerized FastAPI backend remains portable to the target AWS ECS Express Mode/Fargate architecture.
+13. Production secrets are not stored in the repository.
 
-14. Production secrets are not stored in the repository.
-
-15. Relevant automated tests pass.
+14. Relevant automated tests pass.
 
 ---
 

@@ -3,7 +3,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV UV_LINK_MODE=copy
-ENV PORT=7860
+ENV PORT=8000
 
 WORKDIR /app
 
@@ -13,6 +13,6 @@ COPY app ./app
 RUN pip install --no-cache-dir uv
 RUN uv sync --frozen --no-dev
 
-EXPOSE 7860
+EXPOSE 8000
 
-CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

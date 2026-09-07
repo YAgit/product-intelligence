@@ -855,6 +855,10 @@ body.is-busy .loading-shell {
     width: 100%;
   }
 
+  .search-row {
+    flex-direction: column;
+  }
+
   .mode-tab {
     text-align: center;
   }

@@ -1,251 +1,329 @@
-# Pharmaceutical Product Search Web App Plan
+# Product Intelligence Platform Plan
 
 ## Purpose
 
-This document is the implementation plan and completion record for the FDA product search web app described in [AGENTS.md](/Users/yousufahmed/Projects/fdasearch/AGENTS.md). It now tracks the shipped v1.1 drug workflow and the approved v2 device-search expansion.
+This document is the implementation plan and completion record for the Product Intelligence Platform described in [AGENTS.md](/Users/yousufahmed/Projects/fdasearch/AGENTS.md).
 
-## Current Product State
+The current application supports FDA-backed drug and medical-device search with AI analysis and chat. The next MVP will first separate the frontend and backend, then add Adverse Event Intelligence for selected drugs.
 
-- The app runs locally with FastAPI and `uv`.
-- The app is packaged for Docker and Hugging Face Spaces.
-- FDA product data is fetched from the openFDA NDC directory endpoint.
-- Ambiguous product-name searches show a shortlist of matches for explicit user selection.
-- A single pharmaceutical product analyst chatbot is available after product selection.
-- The chatbot uses Anthropic first through OpenRouter and falls back to OpenAI when needed.
-- A clearly visible drug disclaimer is displayed near the top of the page and in the chatbot area.
+The platform is an evidence-first research aid. It must not present adverse-event reports as proof of causality, report counts as incidence, or AI interpretation as a confirmed safety finding.
 
-## Current Scope
+## Current Baseline
 
-### Shipped In v1.1
+The working FastAPI application must remain available until its replacement has verified feature parity.
 
-- Search by product name, product NDC, or package NDC.
-- Show FDA product details for the selected NDC product.
-- When a product-name search yields multiple FDA matches, let the user choose the exact product before loading full details.
-- Provide a chatbot focused on pharmaceutical product questions.
-- Refuse non-pharmaceutical-product questions with a clear limitation response.
+### Existing Features
 
-### Approved For v2
+- Drug search by brand name, generic name, product NDC, or package NDC.
+- Drug input normalization, ambiguous-match selection, FDA details, AI overview, and chat.
+- Device search by UDI barcode text, Device Identifier, brand name, or model/catalog number.
+- Device input normalization, ambiguous-match selection, FDA details, AI overview, and chat.
+- Drug- and device-specific disclaimers and chatbot topic restrictions.
+- Anthropic-primary and OpenAI-fallback AI calls through OpenRouter.
 
-- Add a second top-level device search experience alongside the existing drug experience.
-- Use simple tab navigation so users can switch between drug search and device search from either page.
-- Keep the drug search flow intact while adding the device workflow.
-- Accept a single smart search-box input for device lookup.
-- Support these device input types in the smart box:
-  - UDI barcode text
-  - Device Identifier
-  - Brand name
-  - Model or catalog number
-- Normalize device input and query the appropriate FDA or openFDA device endpoint.
-- When a device search yields multiple matches, show a simple shortlist selector and require explicit selection before loading full details and chat.
-- Show key FDA-backed device details for the selected device.
-- Provide a single device analyst chatbot for the selected device.
-- Refuse non-device or non-pharmaceutical questions in the device chatbot.
-- Display a device-specific disclaimer in the device workflow.
+### Current Technology
 
-## Assumptions To Use Unless Changed
+- Python and FastAPI managed with `uv`.
+- Server-rendered Jinja templates and shared CSS.
+- openFDA NDC and Device UDI integrations.
+- Docker packaging and local startup scripts.
 
-- The app remains installable on Hugging Face Spaces through a Docker Space setup.
-- The user experience should continue to feel like a classic web app rather than a notebook-style tool.
-- openFDA remains the source for NDC product details.
-- FDA or openFDA device endpoints will be used for the new device workflow, depending on which endpoint best matches each supported input type.
-- OpenRouter remains the gateway for model access.
-- Anthropic is the primary chatbot provider family, with OpenAI fallback when Anthropic is unavailable.
-- The chatbot is grounded by the selected FDA product or device plus general pharma-product knowledge, without adding web search or crawling.
+## Confirmed MVP Decisions
 
-## Delivery Rules
+- Complete the Next.js migration with full drug, device, analysis, and chat parity before adverse-event development.
+- Preserve the server-rendered interface until replacement functionality is verified.
+- Let users select the FAERS reporting date range.
+- Use the selected drug's brand name as the initial FAERS matching criterion.
+- Display the exact matching field, value, date range, and retrieved-report count.
+- Do not silently combine alternative product identities.
+- Initially expose calculated tables and matching criteria, not individual FAERS case details.
+- Document both deployment targets before adverse-event development: Vercel for demos and AWS for production or enterprise use.
+- Keep provider-specific deployment configuration outside the application package so the code remains provider-neutral.
+- Do not create cloud resources or deploy the application until deployment is explicitly requested.
 
-- Keep the app simple. Avoid extra abstractions, features, or infrastructure unless they are required by the current scope.
-- When issues appear, identify the root cause with evidence before changing code.
-- Use current stable library versions and idiomatic patterns at implementation time.
-- Keep documentation aligned with the shipped product behavior.
+The initial default FAERS date range remains an implementation-time decision. It does not block the architecture migration.
 
-## Current Technical Direction
+## Target Architecture
 
-- Backend: Python FastAPI
-- Frontend: server-rendered classic web UI served by FastAPI
-- Packaging: `uv` for Python dependency management
-- Deployment target: local run first, then Hugging Face Spaces via Docker
-- API integration:
-  - openFDA for NDC lookup
-  - FDA or openFDA device data for device lookup
-  - OpenRouter for chatbot model access
-- Runtime secrets:
-  - `OPENROUTER_API_KEY`
-  - `OPENFDA_API_KEY`
-- Operations:
-  - Start and stop scripts for macOS, Linux, and Windows in `scripts/`
+### Frontend
 
-## Implementation Record
+Use Next.js, React, and TypeScript for page composition, navigation, UI state, charts, presentation, and calls to versioned FastAPI endpoints.
 
-## Part 1: Planning
+The frontend must not implement FDA query construction, product matching, safety calculations, or LLM orchestration.
 
-### Outcome
+### Backend
 
-- The original plan was created for the initial FDA search MVP.
-- The product later changed in v1.1 from four model-generated analysis cards to a single pharma chatbot with explicit match selection.
+Continue using Python, FastAPI, and `uv` for:
 
-### Success Criteria Met
+- FDA integrations and data normalization.
+- Drug and device matching.
+- FAERS query construction and retrieval.
+- Deterministic adverse-event analytics.
+- AI evidence construction, orchestration, and provider fallback.
+- Stable versioned APIs.
 
-- The plan now reflects the actual shipped direction.
+Keep route handlers thin and reuse working code. Do not reorganize the repository solely to match an example structure.
 
-## Part 2: Scaffolding
+### API Direction
 
-### Outcome
+Expose frontend-independent routes under `/api/v1`. Prefer a small, coherent API surface covering:
 
-- Created the FastAPI project structure, dependency management, templates, static assets, and startup scripts.
-- Added a health route and environment loading.
+- Drug search, details, AI summary, and chat.
+- Device search, details, AI summary, and chat.
+- One aggregate adverse-event analytics endpoint accepting a selected drug and date range.
+- One adverse-event AI-analysis endpoint operating on calculated evidence.
 
-### Success Criteria Met
+Return stable application-domain responses, not raw openFDA JSON.
 
-- The app can be installed and started locally.
+## Adverse Event Intelligence Scope
 
-## Part 3: FDA Search Flow
+### Matching Contract
 
-### Outcome
+1. Start from an explicitly selected drug.
+2. Query FAERS using that product's brand name.
+3. Apply the user-selected reporting date range.
+4. Return the matching field and exact value with the analytics.
+5. Do not broaden the query or merge ambiguous identities silently.
 
-- Implemented openFDA NDC search by product name and NDC.
-- Added parsing, normalization, and error handling for FDA responses.
-- Rendered FDA product details in the UI.
+Keep matching logic isolated so additional deliberate strategies can be added later.
 
-### Success Criteria Met
+### Deterministic Analytics
 
-- Users can search and view FDA NDC product details without crashes on empty or invalid cases.
+Calculate in FastAPI:
 
-## Part 4: Initial AI Analysis
+- Total retrieved reports.
+- Serious and non-serious counts and serious percentage.
+- Death, hospitalization, life-threatening, disability, congenital-anomaly, and other supported serious outcomes.
+- Reporting period represented in the results.
+- Total and serious reports by calendar quarter.
+- Reaction frequency, percentage of retrieved reports, and serious-report count where practical.
 
-### Historical Note
+Use FDA reaction terminology. Do not ask an LLM to calculate values or rename clinical terms.
 
-- This phase originally implemented four provider-specific competitive-analysis cards through OpenRouter.
-- That functionality has been retired in v1.1 and replaced by the chatbot flow below.
+### Evidence Presentation
 
-## Part 5: Frontend Integration And UX Polish
+The interface will present:
 
-### Outcome
+- Matching criteria and selected date range.
+- Reporting overview and serious-outcome tables.
+- Reaction tables.
+- Quarterly trend data and visualization.
+- FAERS limitations.
+- AI interpretation grounded in the displayed calculations.
 
-- Built the classic web app layout with search, detail, and AI interaction areas.
-- Added clearer status messaging, result hierarchy, and mobile-friendly layout behavior.
+Individual FAERS case-detail views are excluded from this MVP.
 
-### Success Criteria Met
+### AI Safety Analysis
 
-- The app is understandable and usable on desktop and smaller screens.
+The backend will send normalized, calculated evidence to the LLM. The response must summarize observable patterns, explain limitations, distinguish facts from interpretation, and avoid causal, diagnostic, incidence, prevalence, or confirmed-signal claims.
 
-## Part 6: Deployment Readiness
+Use Anthropic first through OpenRouter and OpenAI as fallback.
 
-### Outcome
+## Implementation Sequence
 
-- Added Docker packaging and Hugging Face Spaces Docker metadata.
-- Verified local tests, Docker build, and container startup.
+### Phase 1: Architecture Foundation
 
-### Success Criteria Met
+Objective: introduce the separated architecture, reproduce the current user experience, and preserve the working UI until parity is verified.
 
-- The app is ready for straightforward local use and Hugging Face Spaces deployment.
+Status: Complete.
 
-## Part 7: Version 1.1 Update
+- Inventory and verify existing drug, device, summary, and chat behavior.
+- Define application-domain API schemas.
+- Add versioned FastAPI APIs for existing features.
+- Reuse current normalization, FDA clients, and AI behavior.
+- Introduce the Next.js, React, and TypeScript frontend.
+- Configure local frontend-to-backend communication without exposing secrets.
+- Recreate drug and device search, selection, details, AI summaries, and chat.
+- Preserve disclaimers, topic restrictions, and clear drug/device navigation.
+- Verify responsive behavior, including mobile search inputs.
 
-### Goals
+Outcome:
 
-- Replace the four-analysis-card experience with a single pharmaceutical product analyst chatbot.
-- Improve ambiguous product-name handling by showing a shortlist of FDA matches for user selection.
-- Remove outdated header copy tied to the original four-analysis UI.
+- Added domain response schemas and versioned drug, device, summary, chat, and health APIs.
+- Added local CORS configuration through `FRONTEND_ORIGIN`.
+- Added a Next.js 16, React 19, and TypeScript frontend foundation with a typed API client.
+- Added complete Next.js drug and device search experiences using the versioned FastAPI APIs.
+- Preserved automatic single-match loading and explicit selection for ambiguous results.
+- Recreated FDA detail views, AI summaries, analyst chat history, provider-fallback notices, and safety disclaimers.
+- Added frontend interaction tests and responsive layouts.
+- Preserved all existing FastAPI-rendered routes as a controlled fallback.
+- Completed backend tests, frontend tests, lint, type checking, and a production build.
 
-### Checklist
+Exit criteria:
 
-- Remove the two retired header chips.
-- Change FDA name search behavior so multiple matches are shown explicitly.
-- Add a selected-product flow before loading detailed results when ambiguity exists.
-- Replace the four-card analysis service with a single chatbot service.
-- Use Anthropic as the primary model and OpenAI as the fallback.
-- Make the chatbot refuse non-pharmaceutical-product questions.
-- Update tests and deployment-facing documentation.
+- Existing backend tests pass.
+- Versioned APIs cover the current user experience.
+- Next.js runs locally and communicates with FastAPI.
+- Drug and device flows have verified parity.
+- AI primary/fallback behavior remains intact.
 
-### Tests
+### Phase 2: Deployment Instructions
 
-- Automated tests for shortlist rendering, selected product loading, chatbot replies, fallback messaging, and invalid search behavior.
-- Live openFDA check confirming ambiguous queries such as `Tylenol` return multiple matches.
-- Live OpenRouter check confirming Anthropic-first chatbot responses.
+Objective: document executable Vercel and AWS deployment paths without adding provider-specific configuration to the application package or creating cloud resources.
 
-### Success Criteria
+Status: Complete.
 
-- Ambiguous searches no longer auto-pick a product silently.
-- The chatbot appears only in the current single-assistant form.
-- Non-pharma questions are explicitly refused by the assistant prompt contract.
-- Documentation matches the shipped v1.1 app behavior.
+- Create a Vercel runbook for the Next.js frontend and FastAPI backend.
+- Create an AWS runbook using Amplify Hosting for Next.js and ECR plus ECS Express Mode/Fargate for FastAPI.
+- Document prerequisites, environment variables, secrets, deployment order, verification, logging, rollback, and teardown.
+- Keep provider-specific settings in cloud consoles, CI/CD, or a separate deployment workspace.
+- Do not deploy infrastructure or change application code in this phase.
 
-## Part 8: Version 2 Device Search Expansion
+Outcome:
 
-### Goals
+- Added `docs/DEPLOYMENT_VERCEL.md` for the demo architecture.
+- Added `docs/DEPLOYMENT_AWS.md` for the production and enterprise architecture.
+- Kept deployment execution outside the application package and deferred all cloud resource creation until explicitly requested.
 
-- Expand the app from a drug-only workflow into a two-mode drug-and-device workflow.
-- Preserve the current drug search and chatbot experience while adding a device search path.
-- Keep the device experience simple by starting with one smart search box rather than a multi-field advanced form.
+Exit criteria:
 
-### Checklist
+- Both runbooks describe the complete deployment lifecycle and required configuration.
+- The Vercel instructions retain the FastAPI responsibility boundary.
+- The AWS instructions use the same Dockerized backend with ECR and ECS Express Mode/Fargate.
+- No provider-specific application code or infrastructure resources are introduced.
 
-- Add tab navigation for Drug Search and Device Search.
-- Keep the existing drug tab behavior unchanged except where shared layout updates are required.
-- Add a device smart search form that accepts:
-  - UDI barcode text
-  - Device Identifier
-  - Brand name
-  - Model or catalog number
-- Add device input normalization and endpoint routing.
-- Add device-match handling that supports:
-  - direct load for a single match
-  - explicit shortlist selection for multiple matches
-- Add device detail rendering.
-- Add a device analyst chatbot with Anthropic-first and OpenAI-fallback behavior.
-- Make the device chatbot refuse non-device or non-pharma questions.
-- Add a device-specific disclaimer.
-- Update tests and deployment-facing documentation.
+### Phase 3: Adverse Event Intelligence
 
-### Tests
+Objective: retrieve, calculate, and present deterministic adverse-event evidence for a selected drug.
 
-- Automated tests for tab navigation, device search validation, multiple-match selection, selected device rendering, device chatbot replies, refusal behavior, and disclaimer visibility.
-- Endpoint-level checks confirming that the chosen FDA or openFDA device search path supports the four approved smart-search inputs.
-- Regression tests confirming the drug workflow still behaves as in v1.1.
+Status: Not started.
 
-### Success Criteria
+- Add a dedicated openFDA drug adverse-event client.
+- Implement explicit brand-name and user-selected date-range queries.
+- Normalize representative FAERS responses into domain objects.
+- Implement seriousness, outcome, reaction, percentage, and quarterly calculations.
+- Return analytics and matching metadata through a versioned API.
+- Handle empty results and external failures with useful application errors.
+- Add the Next.js Adverse Events section with date selection, reporting overview, serious outcomes, reaction tables, quarterly trends, matching metadata, and FAERS limitations.
 
-- Users can switch between drug and device search without confusion.
-- The drug workflow continues to work as before.
-- A user can search for a device from the smart search box using any of the four approved input types.
-- Multiple device matches do not auto-select silently.
-- The device chatbot is available only after a device is selected.
-- Device disclaimers are clearly visible and specific to device usage.
-- Documentation matches the shipped v2 behavior.
+Exit criteria:
 
-## Out Of Scope
+- Calculations are deterministic and tested.
+- Responses identify exactly how and when data was matched.
+- No LLM participates in numeric calculations.
+- Users can inspect the calculated evidence and FAERS limitations.
+- Existing drug and device workflows do not regress.
 
-- User accounts or login
-- Saved search history
-- Background job queues
-- Database storage
-- Web crawling, news scraping, or custom RAG pipelines
-- Returning to the old four-analysis-card UI
-- Advanced multi-field device search forms beyond the approved single smart search box
-- Device inputs beyond UDI barcode text, Device Identifier, Brand name, and Model or catalog number for the first v2 release
+### Phase 4: AI Safety Analysis
 
-## Done Definition For The Current App
+Objective: provide evidence-grounded AI interpretation of the deterministic adverse-event analytics.
 
-- The app runs locally through the provided scripts.
-- The app builds and starts in Docker.
-- A user can search by drug name or NDC code.
-- The app fetches and displays FDA product details from openFDA.
-- Ambiguous name searches show multiple FDA matches and allow explicit selection.
-- A pharmaceutical product analyst chatbot is available for the selected product.
-- Anthropic is used first for chat, with OpenAI fallback when needed.
-- The UI looks and behaves like a classic web app.
-- The project is ready for a straightforward Hugging Face Spaces Docker deployment.
+Status: Not started.
 
-## Done Definition For v2
+- Add evidence packaging and guarded adverse-event AI prompts.
+- Summarize observable trends, serious outcomes, and reactions that may warrant review.
+- Explain source limitations and distinguish retrieved facts from interpretation.
+- Preserve Anthropic-first and OpenAI-fallback behavior.
 
-- The drug workflow still runs locally through the provided scripts and behaves as before.
-- The app builds and starts in Docker with both drug and device workflows available.
-- A user can switch between Drug Search and Device Search with clear tab navigation.
-- A user can search for a device through one smart search box using any approved v2 device input type.
-- The app fetches and displays FDA-backed device details through the selected device search path.
-- Ambiguous device searches show multiple matches and require explicit selection.
-- A device analyst chatbot is available for the selected device.
-- Anthropic is used first for device chat, with OpenAI fallback when needed.
-- Device-specific disclaimers are clearly visible.
-- The project remains ready for straightforward Hugging Face Spaces Docker deployment.
+Exit criteria:
+
+- Users can inspect the calculated evidence used by the AI summary.
+- AI output follows the pharmacovigilance guardrails.
+- Existing drug and device workflows do not regress.
+
+### Phase 5: UX Refinement
+
+Objective: make the complete adverse-event MVP understandable, responsive, and demo-ready.
+
+Status: Not started.
+
+- Improve adverse-event page composition, charts, evidence drilldown, and limitations copy.
+- Run backend and frontend tests, linting, and type checks.
+- Verify drug, device, adverse-event, and chat flows on desktop and mobile.
+- Verify loading, empty, ambiguous, and external-service error states.
+- Confirm that no secrets are logged or committed.
+- Update README and design documentation for the shipped architecture.
+- Verify local runtime instructions and continued provider neutrality.
+
+Exit criteria:
+
+- The complete MVP satisfies the definition of done in `AGENTS.md`.
+- Evidence remains readable and traceable on desktop and mobile.
+- Relevant automated and manual checks pass.
+- No secrets or provider-specific application dependencies are introduced.
+
+## Testing Priorities
+
+### Existing Behavior
+
+- Drug and device normalization, matching, selection, details, AI, and chat.
+- Provider fallback and chatbot topic restrictions.
+
+### APIs and AI
+
+- Stable schemas, validation, and application-level errors.
+- Mocked FDA and AI-provider responses; routine tests must not require live services.
+- AI evidence construction, response parsing, and fallback behavior.
+
+### Adverse Events
+
+- Brand-name query construction and escaping.
+- User-selected date-range validation.
+- FAERS parsing and empty results.
+- Seriousness and serious-outcome extraction.
+- Reaction de-duplication within a report and aggregation across reports.
+- Quarterly aggregation, date handling, and percentages.
+- Matching metadata returned with analytics.
+
+### Frontend
+
+- Parity-critical drug and device interactions.
+- Date-range selection and validation.
+- Analytics tables, trends, loading, empty, and error states.
+- Responsive layouts and absence of backend secrets in browser configuration.
+
+## Local Operation and Deployment Execution
+
+- Use `docs/DEPLOYMENT_VERCEL.md` for a demo deployment.
+- Use `docs/DEPLOYMENT_AWS.md` for an AWS production or enterprise deployment.
+- Do not create cloud resources or execute either runbook until explicitly requested.
+- Treat hosting as infrastructure, not an application dependency.
+- Keep application code provider-neutral.
+- Use environment variables for secrets and service configuration.
+- Maintain useful local scripts for macOS, Windows, and Linux.
+
+## Out of Scope
+
+- Safety risk scores, ROR, PRR, Bayesian detection, or machine-learning safety models.
+- Automated causality, confirmed-signal, regulatory, or label-change conclusions.
+- Full FAERS case deduplication beyond straightforward justified handling.
+- Individual FAERS case-detail presentation in this MVP.
+- Medical-device post-market adverse-event analysis.
+- Product comparisons, portfolios, watchlists, alerts, or enterprise dashboards.
+- Accounts, SSO, RBAC, multi-tenancy, or customer-specific data.
+- Complaints, CAPAs, deviations, manufacturing, supplier, or other internal data.
+- Additional AWS infrastructure without a concrete requirement.
+
+## Historical Implementation Record
+
+### Version 1
+
+- Created the FastAPI application, templates, assets, Docker packaging, and local scripts.
+- Added openFDA NDC search, normalization, product details, and AI analysis.
+
+### Version 1.1
+
+- Added explicit ambiguous-product selection.
+- Replaced multi-card analysis with a product chatbot.
+- Added Anthropic-primary and OpenAI-fallback behavior.
+
+### Version 2
+
+- Added separate drug and device navigation.
+- Added Device UDI search, normalization, selection, and details.
+- Added device AI analysis, chat, and safety disclaimers.
+
+Historical functionality remains subject to regression verification during migration.
+
+## Definition of Done
+
+- Next.js and FastAPI run as separate local applications.
+- Existing drug and device experiences retain verified parity.
+- Detailed Vercel and AWS deployment runbooks exist without embedding a hosting provider in application code.
+- Users can select an adverse-event reporting range for a selected drug.
+- The initial FAERS query uses and displays the selected product's brand name.
+- The interface displays deterministic reporting, outcome, reaction, and quarterly analytics.
+- Matching criteria and FAERS limitations are visible.
+- AI analysis uses calculated evidence and follows all safety guardrails.
+- Individual FAERS report details and other out-of-scope features are absent.
+- Relevant tests and checks pass, and no secrets are committed or exposed.

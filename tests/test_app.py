@@ -442,3 +442,154 @@ def test_device_chat_route_requires_selected_device() -> None:
 
     assert response.status_code == 200
     assert "Select an FDA device before using the chatbot." in response.text
+
+
+def test_drug_search_api_returns_domain_matches() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        drug_matches=[
+            make_match("Tylenol Children", "50580-111"),
+            make_match("Tylenol Cold", "50580-222"),
+        ]
+    )
+
+    response = client.get("/api/v1/drugs/search?query=Tylenol")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["query"] == "Tylenol"
+    assert [item["product_ndc"] for item in response.json()["matches"]] == [
+        "50580-111",
+        "50580-222",
+    ]
+
+
+def test_drug_detail_and_summary_apis_return_selected_product() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(product=make_result())
+    app.dependency_overrides[get_chatbot_client] = lambda: FakeChatbotClient(
+        ChatReply(model_id="anthropic/claude-sonnet-5", content="Drug reply.")
+    )
+
+    detail_response = client.get("/api/v1/drugs/50580-599")
+    summary_response = client.post("/api/v1/drugs/50580-599/summary")
+
+    app.dependency_overrides.clear()
+
+    assert detail_response.status_code == 200
+    assert detail_response.json()["brand_name"] == "Infants TYLENOL"
+    assert detail_response.json()["package_ndcs"] == ["50580-599-01", "50580-599-02"]
+    assert summary_response.status_code == 200
+    assert "pediatric acetaminophen" in summary_response.json()["content"]
+    assert summary_response.json()["used_fallback"] is False
+
+
+def test_drug_chat_api_returns_reply() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(product=make_result())
+    app.dependency_overrides[get_chatbot_client] = lambda: FakeChatbotClient(
+        ChatReply(
+            model_id="anthropic/claude-sonnet-5",
+            content="The selected product contains acetaminophen.",
+        )
+    )
+
+    response = client.post(
+        "/api/v1/drugs/50580-599/chat",
+        json={
+            "message": "What is the active ingredient?",
+            "history": [{"role": "user", "content": "Tell me about this product."}],
+        },
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "The selected product contains acetaminophen."
+    assert response.json()["model_id"] == "anthropic/claude-sonnet-5"
+
+
+def test_device_search_and_detail_apis_return_domain_data() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        device_matches=[make_device_match("LARYNGOSCOPY ALLIGATOR FORCEPS", "record-1")],
+        device=make_device(),
+    )
+
+    search_response = client.get("/api/v1/devices/search?query=1301-294")
+    detail_response = client.get("/api/v1/devices/record-1")
+
+    app.dependency_overrides.clear()
+
+    assert search_response.status_code == 200
+    assert search_response.json()["matches"][0]["record_key"] == "record-1"
+    assert detail_response.status_code == 200
+    assert detail_response.json()["device_identifier"] == "00192896058644"
+    assert detail_response.json()["product_codes"] == ["KAE - FORCEPS, ENT"]
+
+
+def test_device_summary_and_chat_apis_return_ai_responses() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(device=make_device())
+    app.dependency_overrides[get_chatbot_client] = lambda: FakeChatbotClient(
+        ChatReply(model_id="anthropic/claude-sonnet-5", content="Drug reply."),
+        device_reply=ChatReply(
+            model_id="openai/gpt-5.6-luna",
+            content="Review the device sterility labeling.",
+            used_fallback=True,
+        ),
+    )
+
+    summary_response = client.post("/api/v1/devices/record-1/summary")
+    chat_response = client.post(
+        "/api/v1/devices/record-1/chat",
+        json={"message": "What should I review?", "history": []},
+    )
+
+    app.dependency_overrides.clear()
+
+    assert summary_response.status_code == 200
+    assert "FDA-listed forceps" in summary_response.json()["content"]
+    assert chat_response.status_code == 200
+    assert chat_response.json()["used_fallback"] is True
+    assert chat_response.json()["content"] == "Review the device sterility labeling."
+
+
+def test_api_translates_validation_not_found_and_upstream_errors() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        error=SearchValidationError("Product names must be at least 2 characters.")
+    )
+    validation_response = client.get("/api/v1/drugs/search?query=x")
+
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(product=None)
+    not_found_response = client.get("/api/v1/drugs/00000-000")
+
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        error=OpenFdaError("openFDA could not be reached right now.")
+    )
+    upstream_response = client.get("/api/v1/devices/search?query=forceps")
+
+    app.dependency_overrides.clear()
+
+    assert validation_response.status_code == 422
+    assert validation_response.json()["detail"] == "Product names must be at least 2 characters."
+    assert not_found_response.status_code == 404
+    assert not_found_response.json()["detail"] == "Drug not found."
+    assert upstream_response.status_code == 502
+    assert "openFDA could not be reached" in upstream_response.json()["detail"]
+
+
+def test_api_allows_configured_local_frontend_origin() -> None:
+    response = client.options(
+        "/api/v1/drugs/search?query=Tylenol",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_versioned_api_health_route() -> None:
+    response = client.get("/api/v1/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
