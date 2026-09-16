@@ -12,6 +12,7 @@ import {
   PageHero,
   PanelHeading,
 } from "@/components/page-chrome";
+import { AdverseEventIntelligence } from "@/features/drugs/adverse-event-intelligence";
 import {
   chatAboutDrug,
   errorMessage,
@@ -237,6 +238,8 @@ export function DrugExperience() {
               </>
             ) : <p className="empty-state">Product identity, labeling, route, status, and packaging details will appear after a successful search.</p>}
           </section>
+
+          {drug && <AdverseEventIntelligence key={drug.product_ndc} drug={drug} />}
 
           <ChatPanel
             title="Pharma Analyst Chatbot"

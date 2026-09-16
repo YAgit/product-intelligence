@@ -1,6 +1,6 @@
 # Product Intelligence Platform
 
-FDA-backed drug and medical-device search with AI analysis and chat. The primary frontend is a responsive Next.js application backed by versioned FastAPI APIs.
+FDA-backed drug and medical-device search with AI analysis and chat, plus deterministic FAERS adverse-event intelligence for selected drugs. The primary frontend is a responsive Next.js application backed by versioned FastAPI APIs.
 
 ## Local Development
 
@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-The Next.js frontend runs at `http://localhost:3000` and uses the FastAPI endpoints under `/api/v1`. Drug search is available at `/` and device search at `/devices`.
+The Next.js frontend runs at `http://localhost:3000` and uses the FastAPI endpoints under `/api/v1`. Drug search and adverse-event intelligence are available at `/`; device search is available at `/devices`.
 
 ## Configuration
 

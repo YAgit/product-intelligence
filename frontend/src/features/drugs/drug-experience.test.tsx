@@ -2,9 +2,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
+import { AdverseEventIntelligence } from "@/features/drugs/adverse-event-intelligence";
 import { DrugExperience } from "@/features/drugs/drug-experience";
 import {
   chatAboutDrug,
+  getDrugAdverseEvents,
   getDrug,
   searchDrugs,
   summarizeDrug,
@@ -16,6 +18,7 @@ vi.mock("@/lib/api", () => ({
   getDrug: vi.fn(),
   summarizeDrug: vi.fn(),
   chatAboutDrug: vi.fn(),
+  getDrugAdverseEvents: vi.fn(),
   errorMessage: (error: unknown) => error instanceof Error ? error.message : "Request failed.",
 }));
 
@@ -122,4 +125,80 @@ test("shows a useful drug search error", async () => {
   await user.click(screen.getByRole("button", { name: "Search" }));
 
   expect((await screen.findByRole("alert")).textContent).toContain("FDA service is unavailable.");
+});
+
+test("loads adverse-event evidence for the explicitly selected drug", async () => {
+  const user = userEvent.setup();
+  vi.mocked(searchDrugs).mockResolvedValue({ query: "50580-599", matches: [matches[0]] });
+  vi.mocked(getDrug).mockResolvedValue(drug);
+  vi.mocked(summarizeDrug).mockResolvedValue(summary);
+  vi.mocked(getDrugAdverseEvents).mockResolvedValue({
+    matching: {
+      field: "patient.drug.openfda.brand_name.exact",
+      value: "Infants TYLENOL",
+      start_date: "2025-01-01",
+      end_date: "2025-12-31",
+    },
+    retrieval: {
+      retrieved_reports: 2,
+      available_reports: 1200,
+      retrieval_limit: 1000,
+      truncated: true,
+      sort: "receivedate:desc",
+    },
+    overview: {
+      total_reports: 2,
+      serious_reports: 1,
+      non_serious_reports: 1,
+      serious_percentage: 50,
+      reporting_period_start: "2025-02-01",
+      reporting_period_end: "2025-05-01",
+    },
+    outcomes: [
+      { outcome: "death", label: "Death", report_count: 0 },
+      { outcome: "hospitalization", label: "Hospitalization", report_count: 1 },
+    ],
+    trends: [
+      { period: "2025 Q1", total_reports: 1, serious_reports: 1 },
+      { period: "2025 Q2", total_reports: 1, serious_reports: 0 },
+    ],
+    reactions: [
+      { term: "NAUSEA", report_count: 2, report_percentage: 100, serious_report_count: 1 },
+    ],
+    limitations: ["A report does not establish causality."],
+    source: "FDA Adverse Event Reporting System (FAERS) via openFDA",
+  });
+
+  render(<DrugExperience />);
+  await user.type(screen.getByLabelText("Product name or NDC code"), "50580-599");
+  await user.click(screen.getByRole("button", { name: "Search" }));
+  await screen.findByText(summary.content);
+
+  await user.clear(screen.getByLabelText("Start date"));
+  await user.type(screen.getByLabelText("Start date"), "2025-01-01");
+  await user.clear(screen.getByLabelText("End date"));
+  await user.type(screen.getByLabelText("End date"), "2025-12-31");
+  await user.click(screen.getByRole("button", { name: "Load adverse events" }));
+
+  expect(await screen.findByText("NAUSEA")).toBeTruthy();
+  expect(screen.getByText("50.0%")).toBeTruthy();
+  expect(screen.getByText(/openFDA reported 1,200 matching reports/)).toBeTruthy();
+  expect(screen.getByText("FDA Adverse Event Reporting System (FAERS) via openFDA")).toBeTruthy();
+  expect(getDrugAdverseEvents).toHaveBeenCalledWith("50580-599", "2025-01-01", "2025-12-31");
+});
+
+test("validates the adverse-event date range before calling the API", async () => {
+  const user = userEvent.setup();
+  render(<AdverseEventIntelligence drug={drug} />);
+
+  await user.clear(screen.getByLabelText("Start date"));
+  await user.type(screen.getByLabelText("Start date"), "2025-12-31");
+  await user.clear(screen.getByLabelText("End date"));
+  await user.type(screen.getByLabelText("End date"), "2025-01-01");
+  await user.click(screen.getByRole("button", { name: "Load adverse events" }));
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "The start date must be on or before the end date.",
+  );
+  expect(getDrugAdverseEvents).not.toHaveBeenCalled();
 });

@@ -64,3 +64,45 @@ export type AnalysisResponse = {
   used_fallback: boolean;
   error: string | null;
 };
+
+export type AdverseEventAnalytics = {
+  matching: {
+    field: string;
+    value: string;
+    start_date: string;
+    end_date: string;
+  };
+  retrieval: {
+    retrieved_reports: number;
+    available_reports: number;
+    retrieval_limit: number;
+    truncated: boolean;
+    sort: string;
+  };
+  overview: {
+    total_reports: number;
+    serious_reports: number;
+    non_serious_reports: number;
+    serious_percentage: number;
+    reporting_period_start: string | null;
+    reporting_period_end: string | null;
+  };
+  outcomes: Array<{
+    outcome: string;
+    label: string;
+    report_count: number;
+  }>;
+  trends: Array<{
+    period: string;
+    total_reports: number;
+    serious_reports: number;
+  }>;
+  reactions: Array<{
+    term: string;
+    report_count: number;
+    report_percentage: number;
+    serious_report_count: number;
+  }>;
+  limitations: string[];
+  source: string;
+};

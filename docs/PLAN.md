@@ -41,7 +41,7 @@ The working FastAPI application must remain available until its replacement has 
 - Keep provider-specific deployment configuration outside the application package so the code remains provider-neutral.
 - Do not create cloud resources or deploy the application until deployment is explicitly requested.
 
-The initial default FAERS date range remains an implementation-time decision. It does not block the architecture migration.
+The initial FAERS date range defaults to the previous 12 months and remains user-editable.
 
 ## Target Architecture
 
@@ -186,7 +186,7 @@ Exit criteria:
 
 Objective: retrieve, calculate, and present deterministic adverse-event evidence for a selected drug.
 
-Status: Not started.
+Status: Complete.
 
 - Add a dedicated openFDA drug adverse-event client.
 - Implement explicit brand-name and user-selected date-range queries.
@@ -195,6 +195,15 @@ Status: Not started.
 - Return analytics and matching metadata through a versioned API.
 - Handle empty results and external failures with useful application errors.
 - Add the Next.js Adverse Events section with date selection, reporting overview, serious outcomes, reaction tables, quarterly trends, matching metadata, and FAERS limitations.
+
+Outcome:
+
+- Added a dedicated openFDA drug adverse-event client using exact brand-name matching and inclusive received-date ranges.
+- Added normalized report models and deterministic seriousness, outcome, reaction, percentage, reporting-period, and quarterly calculations.
+- Added a stable aggregate endpoint at `/api/v1/drugs/{product_ndc}/adverse-events`.
+- Added explicit retrieved-versus-available counts and a transparent 1,000-report retrieval limit using newest-received-first ordering.
+- Added the Next.js adverse-event experience with a user-editable 12-month default range, evidence metadata, metrics, serious outcomes, trend visualization, reaction table, empty/error states, and FAERS limitations.
+- Added backend and frontend tests covering query construction, parsing, empty results, date validation, calculations, endpoint behavior, matching metadata, truncation disclosure, and rendering.
 
 Exit criteria:
 

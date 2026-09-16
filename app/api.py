@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.adverse_events import (
+    AdverseEventClient,
+    calculate_adverse_event_analytics,
+    get_adverse_event_client,
+)
 from app.chatbot import ChatMessage, ChatReply, PharmaChatbotClient, get_chatbot_client
 from app.openfda import (
     DeviceRecord,
@@ -14,6 +20,7 @@ from app.openfda import (
     get_openfda_client,
 )
 from app.schemas import (
+    AdverseEventAnalyticsResponse,
     AnalysisResponse,
     ChatRequest,
     DeviceResponse,
@@ -117,6 +124,48 @@ async def chat_about_drug(
     drug = await _get_drug(openfda_client, product_ndc.strip())
     history = [ChatMessage(role=item.role, content=item.content) for item in request.history]
     return _analysis_response(await chatbot_client.answer(message, drug, history))
+
+
+@router.get(
+    "/drugs/{product_ndc}/adverse-events",
+    response_model=AdverseEventAnalyticsResponse,
+)
+async def get_drug_adverse_events(
+    product_ndc: str,
+    start_date: date,
+    end_date: date,
+    openfda_client: OpenFdaClient = Depends(get_openfda_client),
+    adverse_event_client: AdverseEventClient = Depends(get_adverse_event_client),
+) -> AdverseEventAnalyticsResponse:
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The adverse-event start date must be on or before the end date.",
+        )
+
+    drug = await _get_drug(openfda_client, product_ndc.strip())
+    if not drug.brand_name or drug.brand_name == "Not available":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The selected drug does not have a brand name for FAERS matching.",
+        )
+
+    try:
+        dataset = await adverse_event_client.get_reports(
+            drug.brand_name,
+            start_date,
+            end_date,
+        )
+    except OpenFdaError as exc:
+        raise _fda_error(exc) from exc
+
+    analytics = calculate_adverse_event_analytics(
+        dataset,
+        brand_name=drug.brand_name,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return AdverseEventAnalyticsResponse.model_validate(analytics)
 
 
 @router.get("/devices/search", response_model=DeviceSearchResponse)

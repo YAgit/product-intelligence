@@ -1,5 +1,10 @@
 from fastapi.testclient import TestClient
 
+from app.adverse_events import (
+    AdverseEventDataset,
+    get_adverse_event_client,
+    parse_adverse_event_report,
+)
 from app.chatbot import ChatMessage, ChatReply, get_chatbot_client
 from app.main import app
 from app.openfda import (
@@ -101,6 +106,23 @@ class FakeChatbotClient:
         prior_messages: list[ChatMessage] | None = None,
     ) -> ChatReply:
         return self.device_reply
+
+
+class FakeAdverseEventClient:
+    def __init__(
+        self,
+        dataset: AdverseEventDataset | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        self.dataset = dataset or AdverseEventDataset(reports=[], available_reports=0)
+        self.error = error
+        self.calls: list[tuple[str, object, object]] = []
+
+    async def get_reports(self, brand_name, start_date, end_date):
+        self.calls.append((brand_name, start_date, end_date))
+        if self.error is not None:
+            raise self.error
+        return self.dataset
 
 
 def make_result() -> DrugRecord:
@@ -593,3 +615,79 @@ def test_versioned_api_health_route() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_adverse_event_api_uses_selected_drug_brand_and_returns_analytics() -> None:
+    adverse_client = FakeAdverseEventClient(
+        AdverseEventDataset(
+            reports=[
+                parse_adverse_event_report(
+                    {
+                        "receivedate": "20240115",
+                        "serious": "1",
+                        "seriousnesshospitalization": "1",
+                        "patient": {"reaction": [{"reactionmeddrapt": "NAUSEA"}]},
+                    }
+                )
+            ],
+            available_reports=1,
+        )
+    )
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        product=make_result()
+    )
+    app.dependency_overrides[get_adverse_event_client] = lambda: adverse_client
+
+    response = client.get(
+        "/api/v1/drugs/50580-599/adverse-events"
+        "?start_date=2024-01-01&end_date=2024-12-31"
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["matching"]["field"] == "patient.drug.openfda.brand_name.exact"
+    assert body["matching"]["value"] == "Infants TYLENOL"
+    assert body["overview"]["serious_reports"] == 1
+    assert body["outcomes"][1]["report_count"] == 1
+    assert body["reactions"][0]["term"] == "NAUSEA"
+    assert adverse_client.calls[0][0] == "Infants TYLENOL"
+
+
+def test_adverse_event_api_rejects_invalid_date_order_without_querying_faers() -> None:
+    adverse_client = FakeAdverseEventClient()
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        product=make_result()
+    )
+    app.dependency_overrides[get_adverse_event_client] = lambda: adverse_client
+
+    response = client.get(
+        "/api/v1/drugs/50580-599/adverse-events"
+        "?start_date=2025-01-01&end_date=2024-01-01"
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 422
+    assert "start date" in response.json()["detail"]
+    assert adverse_client.calls == []
+
+
+def test_adverse_event_api_translates_upstream_failure() -> None:
+    app.dependency_overrides[get_openfda_client] = lambda: FakeOpenFdaClient(
+        product=make_result()
+    )
+    app.dependency_overrides[get_adverse_event_client] = lambda: FakeAdverseEventClient(
+        error=OpenFdaError("FAERS unavailable")
+    )
+
+    response = client.get(
+        "/api/v1/drugs/50580-599/adverse-events"
+        "?start_date=2024-01-01&end_date=2024-12-31"
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 502
+    assert "FAERS unavailable" in response.json()["detail"]

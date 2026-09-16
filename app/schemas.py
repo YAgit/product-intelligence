@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -89,3 +90,57 @@ class AnalysisResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
+
+
+class AdverseEventMatchingResponse(BaseModel):
+    field: str
+    value: str
+    start_date: date
+    end_date: date
+
+
+class AdverseEventRetrievalResponse(BaseModel):
+    retrieved_reports: int
+    available_reports: int
+    retrieval_limit: int
+    truncated: bool
+    sort: str
+
+
+class AdverseEventOverviewResponse(BaseModel):
+    total_reports: int
+    serious_reports: int
+    non_serious_reports: int
+    serious_percentage: float
+    reporting_period_start: date | None
+    reporting_period_end: date | None
+
+
+class SeriousOutcomeResponse(BaseModel):
+    outcome: str
+    label: str
+    report_count: int
+
+
+class AdverseEventTrendResponse(BaseModel):
+    period: str
+    total_reports: int
+    serious_reports: int
+
+
+class AdverseEventReactionResponse(BaseModel):
+    term: str
+    report_count: int
+    report_percentage: float
+    serious_report_count: int
+
+
+class AdverseEventAnalyticsResponse(BaseModel):
+    matching: AdverseEventMatchingResponse
+    retrieval: AdverseEventRetrievalResponse
+    overview: AdverseEventOverviewResponse
+    outcomes: list[SeriousOutcomeResponse]
+    trends: list[AdverseEventTrendResponse]
+    reactions: list[AdverseEventReactionResponse]
+    limitations: list[str]
+    source: str

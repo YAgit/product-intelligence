@@ -493,6 +493,247 @@ textarea:disabled {
   margin-top: 12px;
 }
 
+.date-range-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.date-range-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--slate-700);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.date-range-form input {
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--slate-300);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--navy-950);
+}
+
+.date-range-form button {
+  min-height: 46px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--navy-900);
+  color: var(--white);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.adverse-event-results {
+  display: grid;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.evidence-callout,
+.limitations-panel {
+  padding: 16px;
+  border-radius: 15px;
+}
+
+.evidence-callout {
+  border: 1px solid #d8e5ef;
+  background: #f2f7fb;
+}
+
+.evidence-callout h3,
+.limitations-panel h3,
+.subsection-heading {
+  margin: 0;
+  color: var(--blue-500);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.04rem;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.evidence-grid dt {
+  color: var(--slate-500);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.evidence-grid dd {
+  margin: 4px 0 0;
+  color: var(--navy-950);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.metric-grid,
+.outcome-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.outcome-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metric-grid article,
+.outcome-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--slate-100);
+  border-radius: 13px;
+  background: #fbfcfe;
+}
+
+.metric-grid span,
+.outcome-grid span {
+  color: var(--slate-500);
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.metric-grid strong,
+.outcome-grid strong {
+  color: var(--navy-900);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.55rem;
+}
+
+.reporting-period {
+  margin: 11px 0 0;
+  color: var(--slate-700);
+  font-size: 0.84rem;
+}
+
+.trend-legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  color: var(--slate-500);
+  font-size: 0.76rem;
+}
+
+.trend-legend span::before {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--blue-500);
+  content: "";
+}
+
+.trend-legend span:last-child::before {
+  background: var(--gold-500);
+}
+
+.trend-chart {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) 94px;
+  gap: 10px;
+  align-items: center;
+  color: var(--slate-700);
+  font-size: 0.78rem;
+}
+
+.trend-bars {
+  display: grid;
+  gap: 3px;
+}
+
+.trend-bar {
+  min-height: 7px;
+  border-radius: 999px;
+}
+
+.trend-bar-total {
+  background: var(--blue-500);
+}
+
+.trend-bar-serious {
+  background: var(--gold-500);
+}
+
+.trend-row > span {
+  text-align: right;
+}
+
+.table-scroll {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.table-scroll th,
+.table-scroll td {
+  padding: 10px;
+  border-bottom: 1px solid var(--slate-100);
+  text-align: right;
+}
+
+.table-scroll th:first-child {
+  text-align: left;
+}
+
+.table-scroll thead th {
+  color: var(--slate-500);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table-scroll tbody th {
+  color: var(--navy-900);
+}
+
+.limitations-panel {
+  border-left: 4px solid var(--gold-500);
+  background: #fff8e6;
+}
+
+.limitations-panel ul {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.limitations-panel li,
+.limitations-panel p {
+  margin: 6px 0;
+  color: var(--slate-700);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .summary-strip {
   display: flex;
   gap: 16px;
@@ -648,6 +889,13 @@ textarea:disabled {
     grid-template-columns: 1fr;
   }
 
+  .date-range-form,
+  .evidence-grid,
+  .metric-grid,
+  .outcome-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mode-tabs {
     display: grid;
     width: 100%;
@@ -689,6 +937,10 @@ textarea:disabled {
 
   .chat-bubble {
     max-width: 94%;
+  }
+
+  .trend-row {
+    grid-template-columns: 64px minmax(0, 1fr) 78px;
   }
 }
 

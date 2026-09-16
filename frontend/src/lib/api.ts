@@ -1,4 +1,5 @@
 import type {
+  AdverseEventAnalytics,
   AnalysisResponse,
   ChatMessage,
   Device,
@@ -52,6 +53,17 @@ export function chatAboutDrug(
     method: "POST",
     body: JSON.stringify({ message, history }),
   });
+}
+
+export function getDrugAdverseEvents(
+  productNdc: string,
+  startDate: string,
+  endDate: string,
+): Promise<AdverseEventAnalytics> {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  return apiRequest(
+    `/api/v1/drugs/${encodeURIComponent(productNdc)}/adverse-events?${params.toString()}`,
+  );
 }
 
 export function searchDevices(query: string): Promise<DeviceSearchResponse> {
