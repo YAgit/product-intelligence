@@ -105,6 +105,43 @@ export function PanelHeading({
   );
 }
 
+type ResultTab = "fda" | "adverse-events";
+
+export function ResultTabs({
+  active,
+  onChange,
+  label,
+}: {
+  active: ResultTab;
+  onChange: (tab: ResultTab) => void;
+  label: string;
+}) {
+  return (
+    <div className="result-tabs" role="tablist" aria-label={label}>
+      <button
+        className={`result-tab ${active === "fda" ? "is-active" : ""}`}
+        type="button"
+        role="tab"
+        aria-selected={active === "fda"}
+        aria-controls="fda-results-panel"
+        onClick={() => onChange("fda")}
+      >
+        FDA Results
+      </button>
+      <button
+        className={`result-tab ${active === "adverse-events" ? "is-active" : ""}`}
+        type="button"
+        role="tab"
+        aria-selected={active === "adverse-events"}
+        aria-controls="adverse-events-panel"
+        onClick={() => onChange("adverse-events")}
+      >
+        Adverse Events
+      </button>
+    </div>
+  );
+}
+
 export function Notice({
   tone,
   label,

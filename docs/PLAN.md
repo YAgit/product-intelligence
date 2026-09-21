@@ -36,6 +36,9 @@ The working FastAPI application must remain available until its replacement has 
 - Use the selected drug's brand name as the initial FAERS matching criterion.
 - Display the exact matching field, value, date range, and retrieved-report count.
 - Do not silently combine alternative product identities.
+- For device events, try exact Device Identifier, model number, catalog number, and brand name in order; disclose the selected and attempted strategies.
+- Use device-native MAUDE metrics rather than applying drug-specific seriousness or reaction concepts to device reports.
+- Present FDA results and adverse-event evidence in tabs, with the chatbot below the tabbed result area.
 - Initially expose calculated tables and matching criteria, not individual FAERS case details.
 - Document both deployment targets before adverse-event development: Vercel for demos and AWS for production or enterprise use.
 - Keep provider-specific deployment configuration outside the application package so the code remains provider-neutral.
@@ -70,7 +73,7 @@ Expose frontend-independent routes under `/api/v1`. Prefer a small, coherent API
 
 - Drug search, details, AI summary, and chat.
 - Device search, details, AI summary, and chat.
-- One aggregate adverse-event analytics endpoint accepting a selected drug and date range.
+- Aggregate adverse-event analytics endpoints accepting a selected drug or device and date range.
 - One adverse-event AI-analysis endpoint operating on calculated evidence.
 
 Return stable application-domain responses, not raw openFDA JSON.
@@ -118,6 +121,12 @@ Individual FAERS case-detail views are excluded from this MVP.
 The backend will send normalized, calculated evidence to the LLM. The response must summarize observable patterns, explain limitations, distinguish facts from interpretation, and avoid causal, diagnostic, incidence, prevalence, or confirmed-signal claims.
 
 Use Anthropic first through OpenRouter and OpenAI as fallback.
+
+### Device Adverse Events
+
+For an explicitly selected device, query openFDA Device Adverse Events using a disclosed exact-match hierarchy: Device Identifier, model number, catalog number, then brand name. Stop at the first strategy that returns reports and never merge results across identities.
+
+Calculate total reports, event-type counts and percentages, reporting period, quarterly trends, and the most frequent FDA device- and patient-problem terms. Expose the selected and attempted matching strategies, retrieval limits, and MAUDE limitations. Keep these calculations deterministic and exclude AI interpretation from this phase.
 
 ## Implementation Sequence
 
@@ -234,9 +243,11 @@ Exit criteria:
 
 Objective: make the complete adverse-event MVP understandable, responsive, and demo-ready.
 
-Status: Not started.
+Status: In progress.
 
 - Improve adverse-event page composition, charts, evidence drilldown, and limitations copy.
+- Tighten header and disclaimer spacing and present FDA and adverse-event results in tabs.
+- Add deterministic openFDA MAUDE analytics for selected devices using the approved explicit fallback hierarchy.
 - Run backend and frontend tests, linting, and type checks.
 - Verify drug, device, adverse-event, and chat flows on desktop and mobile.
 - Verify loading, empty, ambiguous, and external-service error states.
@@ -297,7 +308,7 @@ Exit criteria:
 - Automated causality, confirmed-signal, regulatory, or label-change conclusions.
 - Full FAERS case deduplication beyond straightforward justified handling.
 - Individual FAERS case-detail presentation in this MVP.
-- Medical-device post-market adverse-event analysis.
+- Medical-device adverse-event AI interpretation or confirmed-signal assessment.
 - Product comparisons, portfolios, watchlists, alerts, or enterprise dashboards.
 - Accounts, SSO, RBAC, multi-tenancy, or customer-specific data.
 - Complaints, CAPAs, deviations, manufacturing, supplier, or other internal data.
@@ -330,9 +341,11 @@ Historical functionality remains subject to regression verification during migra
 - Existing drug and device experiences retain verified parity.
 - Detailed Vercel and AWS deployment runbooks exist without embedding a hosting provider in application code.
 - Users can select an adverse-event reporting range for a selected drug.
+- Users can select an adverse-event reporting range for a selected device.
 - The initial FAERS query uses and displays the selected product's brand name.
 - The interface displays deterministic reporting, outcome, reaction, and quarterly analytics.
 - Matching criteria and FAERS limitations are visible.
+- Device matching attempts, MAUDE limitations, event types, quarterly trends, and problem terms are visible.
 - AI analysis uses calculated evidence and follows all safety guardrails.
 - Individual FAERS report details and other out-of-scope features are absent.
 - Relevant tests and checks pass, and no secrets are committed or exposed.

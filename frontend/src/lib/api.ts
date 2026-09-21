@@ -3,6 +3,7 @@ import type {
   AnalysisResponse,
   ChatMessage,
   Device,
+  DeviceAdverseEventAnalytics,
   DeviceSearchResponse,
   Drug,
   DrugSearchResponse,
@@ -72,6 +73,17 @@ export function searchDevices(query: string): Promise<DeviceSearchResponse> {
 
 export function getDevice(recordKey: string): Promise<Device> {
   return apiRequest(`/api/v1/devices/${encodeURIComponent(recordKey)}`);
+}
+
+export function getDeviceAdverseEvents(
+  recordKey: string,
+  startDate: string,
+  endDate: string,
+): Promise<DeviceAdverseEventAnalytics> {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
+  return apiRequest(
+    `/api/v1/devices/${encodeURIComponent(recordKey)}/adverse-events?${params.toString()}`,
+  );
 }
 
 export function summarizeDevice(recordKey: string): Promise<AnalysisResponse> {

@@ -106,3 +106,56 @@ export type AdverseEventAnalytics = {
   limitations: string[];
   source: string;
 };
+
+export type DeviceAdverseEventAnalytics = {
+  matching: {
+    field: string | null;
+    value: string | null;
+    strategy: string;
+    start_date: string;
+    end_date: string;
+    attempted: Array<{
+      field: string;
+      value: string;
+      strategy: string;
+    }>;
+  };
+  retrieval: {
+    retrieved_reports: number;
+    available_reports: number;
+    retrieval_limit: number;
+    truncated: boolean;
+    sort: string;
+  };
+  overview: {
+    total_reports: number;
+    reporting_period_start: string | null;
+    reporting_period_end: string | null;
+  };
+  event_types: Array<{
+    event_type: string;
+    label: string;
+    report_count: number;
+    report_percentage: number;
+  }>;
+  trends: Array<{
+    period: string;
+    total_reports: number;
+    death_reports: number;
+    injury_reports: number;
+    malfunction_reports: number;
+    other_reports: number;
+  }>;
+  device_problems: Array<{
+    term: string;
+    report_count: number;
+    report_percentage: number;
+  }>;
+  patient_problems: Array<{
+    term: string;
+    report_count: number;
+    report_percentage: number;
+  }>;
+  limitations: string[];
+  source: string;
+};

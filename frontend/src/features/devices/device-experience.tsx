@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { ChatPanel } from "@/components/chat-panel";
 import {
@@ -11,7 +11,9 @@ import {
   Notice,
   PageHero,
   PanelHeading,
+  ResultTabs,
 } from "@/components/page-chrome";
+import { DeviceAdverseEventIntelligence } from "@/features/devices/device-adverse-event-intelligence";
 import {
   chatAboutDevice,
   errorMessage,
@@ -26,6 +28,7 @@ function scrollToPanel(id: string) {
 }
 
 export function DeviceExperience() {
+  const detailsPanelRef = useRef<HTMLElement>(null);
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<DeviceMatch[]>([]);
@@ -37,9 +40,16 @@ export function DeviceExperience() {
   const [notice, setNotice] = useState<string | null>(null);
   const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
+  const [resultTab, setResultTab] = useState<"fda" | "adverse-events">("fda");
 
   const busy = busyMessage !== null;
   const status = device ? "Result loaded" : error ? "Needs attention" : matches.length > 1 ? "Selection needed" : "Ready to search";
+
+  useLayoutEffect(() => {
+    if (device) {
+      detailsPanelRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [device]);
 
   function resetResult() {
     setDevice(null);
@@ -47,6 +57,7 @@ export function DeviceExperience() {
     setHistory([]);
     setMessage("");
     setChatNotice(null);
+    setResultTab("fda");
   }
 
   async function loadDevice(recordKey: string) {
@@ -67,7 +78,6 @@ export function DeviceExperience() {
       } else if (deviceSummary.error) {
         setChatNotice(deviceSummary.error);
       }
-      scrollToPanel("details-panel");
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -215,26 +225,34 @@ export function DeviceExperience() {
             </section>
           )}
 
-          <section className="panel" id="details-panel">
-            <PanelHeading title="FDA Device Details" badge={device ? "Result loaded" : "Waiting for search"} />
-            {device ? (
-              <>
-                <div className="result-banner">
-                  <div><p className="result-kicker">Selected device</p><h2>{device.brand_name}</h2></div>
-                  <div className="result-tags"><span>{device.device_identifier}</span><span>{device.version_or_model_number}</span></div>
-                </div>
-                <div className="detail-grid">
-                  <article><h3>Identity</h3><p><strong>Device Identifier:</strong> {device.device_identifier}</p><p><strong>Brand name:</strong> {device.brand_name}</p><p><strong>Company:</strong> {device.company_name}</p></article>
-                  <article><h3>Modeling</h3><p><strong>Version or model number:</strong> {device.version_or_model_number}</p><p><strong>Catalog number:</strong> {device.catalog_number}</p><p><strong>FDA product codes:</strong> {device.product_codes.join(", ") || "Not available"}</p></article>
-                  <article><h3>Usage</h3><p><strong>Commercial distribution:</strong> {device.commercial_distribution_status}</p><p><strong>Prescription or OTC:</strong> {device.prescription_otc_status}</p><p><strong>Single-use indicator:</strong> {device.single_use_indicator}</p></article>
-                  <article><h3>Safety</h3><p><strong>Sterility information:</strong> {device.sterility_information}</p><p><strong>MRI safety:</strong> {device.mri_safety_information}</p><p><strong>Implantable-device indicator:</strong> {device.implantable_device_indicator}</p><p><strong>Latex information:</strong> {device.latex_information}</p></article>
-                  <article><h3>Description</h3><p>{device.device_description}</p></article>
-                  <article><h3>Storage And Handling</h3>{device.storage_and_handling_conditions.length ? <ul>{device.storage_and_handling_conditions.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Storage and handling details are not available.</p>}</article>
-                </div>
-                <article className="detail-card detail-wide"><h3>Packaging Configurations</h3>{device.packaging_configurations.length ? <ul>{device.packaging_configurations.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Packaging configurations are not available.</p>}</article>
-              </>
-            ) : <p className="empty-state">Device identity, modeling, usage, safety, storage, and packaging details will appear after a successful search.</p>}
-          </section>
+          {device ? (
+            <section className="result-section" id="details-panel" ref={detailsPanelRef}>
+              <ResultTabs active={resultTab} onChange={setResultTab} label="Device result sections" />
+              {resultTab === "fda" ? (
+                <section className="panel" id="fda-results-panel" role="tabpanel">
+                  <PanelHeading title="FDA Device Details" badge="Result loaded" />
+                  <div className="result-banner">
+                    <div><p className="result-kicker">Selected device</p><h2>{device.brand_name}</h2></div>
+                    <div className="result-tags"><span>{device.device_identifier}</span><span>{device.version_or_model_number}</span></div>
+                  </div>
+                  <div className="detail-grid">
+                    <article><h3>Identity</h3><p><strong>Device Identifier:</strong> {device.device_identifier}</p><p><strong>Brand name:</strong> {device.brand_name}</p><p><strong>Company:</strong> {device.company_name}</p></article>
+                    <article><h3>Modeling</h3><p><strong>Version or model number:</strong> {device.version_or_model_number}</p><p><strong>Catalog number:</strong> {device.catalog_number}</p><p><strong>FDA product codes:</strong> {device.product_codes.join(", ") || "Not available"}</p></article>
+                    <article><h3>Usage</h3><p><strong>Commercial distribution:</strong> {device.commercial_distribution_status}</p><p><strong>Prescription or OTC:</strong> {device.prescription_otc_status}</p><p><strong>Single-use indicator:</strong> {device.single_use_indicator}</p></article>
+                    <article><h3>Safety</h3><p><strong>Sterility information:</strong> {device.sterility_information}</p><p><strong>MRI safety:</strong> {device.mri_safety_information}</p><p><strong>Implantable-device indicator:</strong> {device.implantable_device_indicator}</p><p><strong>Latex information:</strong> {device.latex_information}</p></article>
+                    <article><h3>Description</h3><p>{device.device_description}</p></article>
+                    <article><h3>Storage And Handling</h3>{device.storage_and_handling_conditions.length ? <ul>{device.storage_and_handling_conditions.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Storage and handling details are not available.</p>}</article>
+                  </div>
+                  <article className="detail-card detail-wide"><h3>Packaging Configurations</h3>{device.packaging_configurations.length ? <ul>{device.packaging_configurations.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Packaging configurations are not available.</p>}</article>
+                </section>
+              ) : <DeviceAdverseEventIntelligence key={device.record_key} device={device} />}
+            </section>
+          ) : (
+            <section className="panel" id="details-panel" ref={detailsPanelRef}>
+              <PanelHeading title="FDA Device Details" badge="Waiting for search" />
+              <p className="empty-state">Device identity, modeling, usage, safety, storage, and packaging details will appear after a successful search.</p>
+            </section>
+          )}
 
           <ChatPanel
             title="Device Analyst Chatbot"

@@ -11,6 +11,11 @@ from app.adverse_events import (
     get_adverse_event_client,
 )
 from app.chatbot import ChatMessage, ChatReply, PharmaChatbotClient, get_chatbot_client
+from app.device_adverse_events import (
+    DeviceAdverseEventClient,
+    calculate_device_adverse_event_analytics,
+    get_device_adverse_event_client,
+)
 from app.openfda import (
     DeviceRecord,
     DrugRecord,
@@ -23,6 +28,7 @@ from app.schemas import (
     AdverseEventAnalyticsResponse,
     AnalysisResponse,
     ChatRequest,
+    DeviceAdverseEventAnalyticsResponse,
     DeviceResponse,
     DeviceSearchResponse,
     DrugResponse,
@@ -187,6 +193,42 @@ async def get_device(
     openfda_client: OpenFdaClient = Depends(get_openfda_client),
 ) -> DeviceRecord:
     return await _get_device(openfda_client, record_key.strip())
+
+
+@router.get(
+    "/devices/{record_key}/adverse-events",
+    response_model=DeviceAdverseEventAnalyticsResponse,
+)
+async def get_device_adverse_events(
+    record_key: str,
+    start_date: date,
+    end_date: date,
+    openfda_client: OpenFdaClient = Depends(get_openfda_client),
+    adverse_event_client: DeviceAdverseEventClient = Depends(get_device_adverse_event_client),
+) -> DeviceAdverseEventAnalyticsResponse:
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="The adverse-event start date must be on or before the end date.",
+        )
+
+    device = await _get_device(openfda_client, record_key.strip())
+    try:
+        dataset = await adverse_event_client.get_reports(device, start_date, end_date)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    except OpenFdaError as exc:
+        raise _fda_error(exc) from exc
+
+    analytics = calculate_device_adverse_event_analytics(
+        dataset,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return DeviceAdverseEventAnalyticsResponse.model_validate(analytics)
 
 
 @router.post("/devices/{record_key}/summary", response_model=AnalysisResponse)

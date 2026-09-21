@@ -144,3 +144,58 @@ class AdverseEventAnalyticsResponse(BaseModel):
     reactions: list[AdverseEventReactionResponse]
     limitations: list[str]
     source: str
+
+
+class DeviceEventMatchAttemptResponse(BaseModel):
+    field: str
+    value: str
+    strategy: str
+
+
+class DeviceEventMatchingResponse(BaseModel):
+    field: str | None
+    value: str | None
+    strategy: str
+    start_date: date
+    end_date: date
+    attempted: list[DeviceEventMatchAttemptResponse]
+
+
+class DeviceEventOverviewResponse(BaseModel):
+    total_reports: int
+    reporting_period_start: date | None
+    reporting_period_end: date | None
+
+
+class DeviceEventTypeResponse(BaseModel):
+    event_type: str
+    label: str
+    report_count: int
+    report_percentage: float
+
+
+class DeviceEventTrendResponse(BaseModel):
+    period: str
+    total_reports: int
+    death_reports: int
+    injury_reports: int
+    malfunction_reports: int
+    other_reports: int
+
+
+class DeviceProblemResponse(BaseModel):
+    term: str
+    report_count: int
+    report_percentage: float
+
+
+class DeviceAdverseEventAnalyticsResponse(BaseModel):
+    matching: DeviceEventMatchingResponse
+    retrieval: AdverseEventRetrievalResponse
+    overview: DeviceEventOverviewResponse
+    event_types: list[DeviceEventTypeResponse]
+    trends: list[DeviceEventTrendResponse]
+    device_problems: list[DeviceProblemResponse]
+    patient_problems: list[DeviceProblemResponse]
+    limitations: list[str]
+    source: str

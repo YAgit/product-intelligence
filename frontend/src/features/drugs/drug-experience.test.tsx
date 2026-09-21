@@ -70,6 +70,7 @@ const summary = {
 
 test("requires explicit selection for ambiguous drug results and loads details", async () => {
   const user = userEvent.setup();
+  const scrollIntoView = vi.mocked(HTMLElement.prototype.scrollIntoView);
   vi.mocked(searchDrugs).mockResolvedValue({ query: "Tylenol", matches });
   vi.mocked(getDrug).mockResolvedValue(drug);
   vi.mocked(summarizeDrug).mockResolvedValue(summary);
@@ -84,8 +85,11 @@ test("requires explicit selection for ambiguous drug results and loads details",
   await user.click(screen.getByRole("button", { name: /Infants TYLENOL/ }));
 
   expect(await screen.findByText("ACETAMINOPHEN (160 mg/5mL)")).toBeTruthy();
+  expect(screen.getByRole("tab", { name: "FDA Results" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tab", { name: "Adverse Events" })).toBeTruthy();
   expect(screen.getByText(summary.content)).toBeTruthy();
   expect(getDrug).toHaveBeenCalledWith("50580-599");
+  expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "start" });
 });
 
 test("automatically loads one drug match and sends chat history", async () => {
@@ -173,6 +177,7 @@ test("loads adverse-event evidence for the explicitly selected drug", async () =
   await user.type(screen.getByLabelText("Product name or NDC code"), "50580-599");
   await user.click(screen.getByRole("button", { name: "Search" }));
   await screen.findByText(summary.content);
+  await user.click(screen.getByRole("tab", { name: "Adverse Events" }));
 
   await user.clear(screen.getByLabelText("Start date"));
   await user.type(screen.getByLabelText("Start date"), "2025-01-01");

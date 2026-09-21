@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { ChatPanel } from "@/components/chat-panel";
 import {
@@ -11,6 +11,7 @@ import {
   Notice,
   PageHero,
   PanelHeading,
+  ResultTabs,
 } from "@/components/page-chrome";
 import { AdverseEventIntelligence } from "@/features/drugs/adverse-event-intelligence";
 import {
@@ -31,6 +32,7 @@ function scrollToPanel(id: string) {
 }
 
 export function DrugExperience() {
+  const detailsPanelRef = useRef<HTMLElement>(null);
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<DrugMatch[]>([]);
@@ -42,9 +44,16 @@ export function DrugExperience() {
   const [notice, setNotice] = useState<string | null>(null);
   const [chatNotice, setChatNotice] = useState<string | null>(null);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
+  const [resultTab, setResultTab] = useState<"fda" | "adverse-events">("fda");
 
   const busy = busyMessage !== null;
   const status = drug ? "Result loaded" : error ? "Needs attention" : matches.length > 1 ? "Selection needed" : "Ready to search";
+
+  useLayoutEffect(() => {
+    if (drug) {
+      detailsPanelRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [drug]);
 
   function resetResult() {
     setDrug(null);
@@ -52,6 +61,7 @@ export function DrugExperience() {
     setHistory([]);
     setMessage("");
     setChatNotice(null);
+    setResultTab("fda");
   }
 
   async function loadProduct(productNdc: string) {
@@ -72,7 +82,6 @@ export function DrugExperience() {
       } else if (productSummary.error) {
         setChatNotice(productSummary.error);
       }
-      scrollToPanel("details-panel");
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -220,26 +229,32 @@ export function DrugExperience() {
             </section>
           )}
 
-          <section className="panel" id="details-panel">
-            <PanelHeading title="FDA Product Details" badge={drug ? "Result loaded" : "Waiting for search"} />
-            {drug ? (
-              <>
-                <div className="result-banner">
-                  <div><p className="result-kicker">Selected product</p><h2>{drug.brand_name}</h2></div>
-                  <div className="result-tags"><span>{drug.product_ndc}</span><span>{drug.dosage_form}</span></div>
-                </div>
-                <div className="detail-grid">
-                  <article><h3>Product</h3><p><strong>Brand:</strong> {drug.brand_name}</p><p><strong>Generic:</strong> {drug.generic_name}</p><p><strong>Product NDC:</strong> {drug.product_ndc}</p></article>
-                  <article><h3>Labeler</h3><p><strong>Company:</strong> {drug.labeler_name}</p><p><strong>Package NDCs:</strong> {valueList(drug.package_ndcs)}</p></article>
-                  <article><h3>Route</h3><p><strong>Dosage:</strong> {drug.dosage_form}</p><p><strong>Route:</strong> {valueList(drug.route)}</p><p><strong>Ingredients:</strong> {valueList(drug.active_ingredients)}</p></article>
-                  <article><h3>Status</h3><p><strong>Category:</strong> {drug.marketing_category}</p><p><strong>Type:</strong> {drug.product_type}</p><p><strong>Application:</strong> {drug.application_number}</p><p><strong>Listed through:</strong> {drug.listing_expiration_date}</p><p><strong>Marketed since:</strong> {drug.marketing_start_date}</p></article>
-                </div>
-                <article className="detail-card detail-wide"><h3>Packaging</h3>{drug.package_descriptions.length ? <ul>{drug.package_descriptions.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Package descriptions are not available.</p>}</article>
-              </>
-            ) : <p className="empty-state">Product identity, labeling, route, status, and packaging details will appear after a successful search.</p>}
-          </section>
-
-          {drug && <AdverseEventIntelligence key={drug.product_ndc} drug={drug} />}
+          {drug ? (
+            <section className="result-section" id="details-panel" ref={detailsPanelRef}>
+              <ResultTabs active={resultTab} onChange={setResultTab} label="Drug result sections" />
+              {resultTab === "fda" ? (
+                <section className="panel" id="fda-results-panel" role="tabpanel">
+                  <PanelHeading title="FDA Product Details" badge="Result loaded" />
+                  <div className="result-banner">
+                    <div><p className="result-kicker">Selected product</p><h2>{drug.brand_name}</h2></div>
+                    <div className="result-tags"><span>{drug.product_ndc}</span><span>{drug.dosage_form}</span></div>
+                  </div>
+                  <div className="detail-grid">
+                    <article><h3>Product</h3><p><strong>Brand:</strong> {drug.brand_name}</p><p><strong>Generic:</strong> {drug.generic_name}</p><p><strong>Product NDC:</strong> {drug.product_ndc}</p></article>
+                    <article><h3>Labeler</h3><p><strong>Company:</strong> {drug.labeler_name}</p><p><strong>Package NDCs:</strong> {valueList(drug.package_ndcs)}</p></article>
+                    <article><h3>Route</h3><p><strong>Dosage:</strong> {drug.dosage_form}</p><p><strong>Route:</strong> {valueList(drug.route)}</p><p><strong>Ingredients:</strong> {valueList(drug.active_ingredients)}</p></article>
+                    <article><h3>Status</h3><p><strong>Category:</strong> {drug.marketing_category}</p><p><strong>Type:</strong> {drug.product_type}</p><p><strong>Application:</strong> {drug.application_number}</p><p><strong>Listed through:</strong> {drug.listing_expiration_date}</p><p><strong>Marketed since:</strong> {drug.marketing_start_date}</p></article>
+                  </div>
+                  <article className="detail-card detail-wide"><h3>Packaging</h3>{drug.package_descriptions.length ? <ul>{drug.package_descriptions.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Package descriptions are not available.</p>}</article>
+                </section>
+              ) : <AdverseEventIntelligence key={drug.product_ndc} drug={drug} />}
+            </section>
+          ) : (
+            <section className="panel" id="details-panel" ref={detailsPanelRef}>
+              <PanelHeading title="FDA Product Details" badge="Waiting for search" />
+              <p className="empty-state">Product identity, labeling, route, status, and packaging details will appear after a successful search.</p>
+            </section>
+          )}
 
           <ChatPanel
             title="Pharma Analyst Chatbot"
